@@ -16,11 +16,12 @@ import Chair from '../assets/Chair.jpg';
 
 interface EquipmentCatalogProps {
   onBack: () => void;
+  onEquipmentSelected: (equipmentName: string) => void;
   onOpenBookingStatus: () => void;
   onOpenProfileSettings: () => void;
 }
 
-const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ onBack, onOpenBookingStatus, onOpenProfileSettings }) => {
+const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ onBack, onEquipmentSelected, onOpenBookingStatus, onOpenProfileSettings }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
@@ -28,6 +29,10 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ onBack, onOpenBooki
   const handleNewChat = () => {
     setIsSidebarOpen(false);
     onBack();
+  };
+
+  const handleEquipmentClick = (equipmentName: string) => {
+    onEquipmentSelected(equipmentName);
   };
 
   const equipment = [
@@ -132,7 +137,7 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ onBack, onOpenBooki
           <div className="pb-24">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 md:gap-x-8 gap-y-8 md:gap-y-12 w-full">
               {equipment.map((item) => (
-                <div key={item.id} className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform">
+                <div key={item.id} onClick={() => handleEquipmentClick(item.name)} className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform">
                   <div className="relative w-full aspect-4/3 overflow-hidden rounded-3xl md:rounded-4xl shadow-sm border border-slate-200/50 bg-slate-100">
                     <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
                     <div className="absolute inset-0 bg-linear-to-t from-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

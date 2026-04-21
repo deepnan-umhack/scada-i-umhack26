@@ -7,6 +7,10 @@ import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
 
 interface MainChatProps {
+  displayedSpace: string | null;
+  onSetDisplayedSpace: (space: string | null) => void;
+  displayedEquipment: string | null;
+  onSetDisplayedEquipment: (equipment: string | null) => void;
   onOpenBrowseSpaces: () => void;
   onOpenBookingStatus: () => void;
   onOpenEquipmentCatalog: () => void;
@@ -15,6 +19,10 @@ interface MainChatProps {
 }
 
 const MainChat: React.FC<MainChatProps> = ({ 
+  displayedSpace,
+  onSetDisplayedSpace,
+  displayedEquipment,
+  onSetDisplayedEquipment,
   onOpenBrowseSpaces, 
   onOpenBookingStatus, 
   onOpenEquipmentCatalog, 
@@ -45,7 +53,17 @@ const MainChat: React.FC<MainChatProps> = ({
 
   const handleNewChat = () => {
     setRequirement('');
+    onSetDisplayedSpace(null);
+    onSetDisplayedEquipment(null);
     setIsSidebarOpen(false);
+  };
+
+  const handleClearSpace = () => {
+    onSetDisplayedSpace(null);
+  };
+
+  const handleClearEquipment = () => {
+    onSetDisplayedEquipment(null);
   };
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
@@ -149,19 +167,45 @@ const MainChat: React.FC<MainChatProps> = ({
                 ))}
             </div>
 
-            <div className="bg-white rounded-full md:rounded-4xl px-6 py-2 md:py-3 border border-white focus-within:border-slate-200 transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center min-h-14 md:min-h-20 relative overflow-hidden">
-              <textarea 
-                ref={textareaRef}
-                value={requirement}
-                onChange={handleInputChange}
-                placeholder="Type in your requirement" 
-                rows={1}
-                className="flex-1 bg-transparent border-none focus:ring-0 text-[16px] outline-none text-slate-700 resize-none placeholder-slate-300 font-base leading-normal h-auto no-scrollbar max-h-40 overflow-y-hidden py-2" 
-              />
-              <div className="flex items-center shrink-0 ml-2">
-                <button className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center">
-                  <span className="text-2xl text-slate-300 rotate-[-15deg] block group-hover:text-blue-500 group-active:text-blue-600 transition-colors leading-none">➤</span>
-                </button>
+            <div className="bg-white rounded-full md:rounded-4xl px-6 py-3 md:py-4 border border-white focus-within:border-slate-200 transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-2 relative overflow-visible">
+              <div className="flex flex-wrap gap-2 items-center">
+                {displayedSpace && (
+                  <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-full border border-slate-200 text-sm font-medium text-slate-700 shrink-0">
+                    <span>space: <span className="font-semibold">{displayedSpace}</span></span>
+                    <button 
+                      onClick={handleClearSpace}
+                      className="ml-1 text-slate-400 hover:text-slate-600 transition-colors active:scale-90 font-bold text-lg leading-none"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                {displayedEquipment && (
+                  <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-200 text-sm font-medium text-blue-700 shrink-0">
+                    <span>equipment: <span className="font-semibold">{displayedEquipment}</span></span>
+                    <button 
+                      onClick={handleClearEquipment}
+                      className="ml-1 text-blue-400 hover:text-blue-600 transition-colors active:scale-90 font-bold text-lg leading-none"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-end gap-2">
+                <textarea 
+                  ref={textareaRef}
+                  value={requirement}
+                  onChange={handleInputChange}
+                  placeholder="Type in your requirement" 
+                  rows={1}
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-[16px] outline-none text-slate-700 resize-none placeholder-slate-300 font-base leading-normal h-auto no-scrollbar max-h-40 overflow-y-hidden py-2 min-w-0" 
+                />
+                <div className="flex items-center shrink-0">
+                  <button className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center">
+                    <span className="text-2xl text-slate-300 rotate-[-15deg] block group-hover:text-blue-500 group-active:text-blue-600 transition-colors leading-none">➤</span>
+                  </button>
+                </div>
               </div>
             </div>
             {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  

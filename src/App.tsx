@@ -12,6 +12,8 @@ function App() {
   const [showLanding, setShowLanding] = useState(true);
   
   const [activeView, setActiveView] = useState<'chat' | 'browse' | 'bookings' | 'catalog' | 'directory' | 'profile'>('chat');
+  const [displayedSpace, setDisplayedSpace] = useState<string | null>(null);
+  const [displayedEquipment, setDisplayedEquipment] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -38,6 +40,10 @@ function App() {
           {activeView === 'chat' && (
             <motion.div key="chat" {...snappyVariants} className="h-full">
               <MainChat 
+                displayedSpace={displayedSpace}
+                onSetDisplayedSpace={setDisplayedSpace}
+                displayedEquipment={displayedEquipment}
+                onSetDisplayedEquipment={setDisplayedEquipment}
                 onOpenBrowseSpaces={() => setActiveView('browse')} 
                 onOpenBookingStatus={() => setActiveView('bookings')} 
                 onOpenEquipmentCatalog={() => setActiveView('catalog')}
@@ -52,6 +58,10 @@ function App() {
             <motion.div key="browse" {...snappyVariants} className="h-full">
               <BrowseSpaces 
                 onBack={() => setActiveView('chat')} 
+                onSpaceSelected={(spaceName) => {
+                  setDisplayedSpace(spaceName);
+                  setActiveView('chat');
+                }}
                 onOpenBookingStatus={() => setActiveView('bookings')}
                 onOpenProfileSettings={() => setActiveView('profile')} // Profile Trigger
               />
@@ -63,6 +73,10 @@ function App() {
             <motion.div key="catalog" {...snappyVariants} className="h-full">
               <EquipmentCatalog 
                 onBack={() => setActiveView('chat')} 
+                onEquipmentSelected={(equipmentName) => {
+                  setDisplayedEquipment(equipmentName);
+                  setActiveView('chat');
+                }}
                 onOpenBookingStatus={() => setActiveView('bookings')}
                 onOpenProfileSettings={() => setActiveView('profile')} // Profile Trigger
               />
