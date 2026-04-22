@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import LandingPage from './pages/LandingPage';
+import AuthPage from './pages/AuthPage';
 import MainChat from './pages/MainChat';
 import BrowseSpaces from './pages/BrowseSpaces';
 import BookingStatus from './pages/BookingStatus';
@@ -10,6 +11,8 @@ import ProfileSettings from './pages/ProfileSettings';
 
 function App() {
   const [showLanding, setShowLanding] = useState(true);
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   const [activeView, setActiveView] = useState<'chat' | 'browse' | 'bookings' | 'catalog' | 'directory' | 'profile'>('chat');
   const [displayedSpace, setDisplayedSpace] = useState<string | null>(null);
@@ -32,86 +35,95 @@ function App() {
   return (
     <div className="relative w-full h-svh bg-[#F0F4F8] overflow-hidden">
       
-      {/* Main */}
+      {/* Main Logic */}
       <div className="w-full h-full">
         <AnimatePresence mode="wait">
           
-          {/* Main Chat */}
-          {activeView === 'chat' && (
-            <motion.div key="chat" {...snappyVariants} className="h-full">
-              <MainChat 
-                displayedSpace={displayedSpace}
-                onSetDisplayedSpace={setDisplayedSpace}
-                displayedEquipment={displayedEquipment}
-                onSetDisplayedEquipment={setDisplayedEquipment}
-                onOpenBrowseSpaces={() => setActiveView('browse')} 
-                onOpenBookingStatus={() => setActiveView('bookings')} 
-                onOpenEquipmentCatalog={() => setActiveView('catalog')}
-                onOpenDepartmentDirectory={() => setActiveView('directory')}
-                onOpenProfileSettings={() => setActiveView('profile')} // Profile Trigger
-              />
-            </motion.div>
-          )}
+          {!isAuthenticated ? (
 
-          {/* Browse Spaces */}
-          {activeView === 'browse' && (
-            <motion.div key="browse" {...snappyVariants} className="h-full">
-              <BrowseSpaces 
-                onBack={() => setActiveView('chat')} 
-                onSpaceSelected={(spaceName) => {
-                  setDisplayedSpace(spaceName);
-                  setActiveView('chat');
-                }}
-                onOpenBookingStatus={() => setActiveView('bookings')}
-                onOpenProfileSettings={() => setActiveView('profile')} // Profile Trigger
-              />
+            <motion.div key="auth" {...snappyVariants} className="h-full">
+              <AuthPage onLoginSuccess={() => setIsAuthenticated(true)} />
             </motion.div>
-          )}
+          ) : (
 
-          {/* Equipment Catalog */}
-          {activeView === 'catalog' && (
-            <motion.div key="catalog" {...snappyVariants} className="h-full">
-              <EquipmentCatalog 
-                onBack={() => setActiveView('chat')} 
-                onEquipmentSelected={(equipmentName) => {
-                  setDisplayedEquipment(equipmentName);
-                  setActiveView('chat');
-                }}
-                onOpenBookingStatus={() => setActiveView('bookings')}
-                onOpenProfileSettings={() => setActiveView('profile')} // Profile Trigger
-              />
-            </motion.div>
-          )}
+            <>
+              {activeView === 'chat' && (
+                <motion.div key="chat" {...snappyVariants} className="h-full">
+                  <MainChat 
+                    displayedSpace={displayedSpace}
+                    onSetDisplayedSpace={setDisplayedSpace}
+                    displayedEquipment={displayedEquipment}
+                    onSetDisplayedEquipment={setDisplayedEquipment}
+                    onOpenBrowseSpaces={() => setActiveView('browse')} 
+                    onOpenBookingStatus={() => setActiveView('bookings')} 
+                    onOpenEquipmentCatalog={() => setActiveView('catalog')}
+                    onOpenDepartmentDirectory={() => setActiveView('directory')}
+                    onOpenProfileSettings={() => setActiveView('profile')}
+                  />
+                </motion.div>
+              )}
 
-          {/* Department Directory */}
-          {activeView === 'directory' && (
-            <motion.div key="directory" {...snappyVariants} className="h-full">
-              <DepartmentDirectory 
-                onBack={() => setActiveView('chat')} 
-                onOpenBookingStatus={() => setActiveView('bookings')}
-                onOpenProfileSettings={() => setActiveView('profile')} // Profile Trigger
-              />
-            </motion.div>
-          )}
+              {activeView === 'browse' && (
+                <motion.div key="browse" {...snappyVariants} className="h-full">
+                  <BrowseSpaces 
+                    onBack={() => setActiveView('chat')} 
+                    onSpaceSelected={(spaceName) => {
+                      setDisplayedSpace(spaceName);
+                      setActiveView('chat');
+                    }}
+                    onOpenBookingStatus={() => setActiveView('bookings')}
+                    onOpenProfileSettings={() => setActiveView('profile')}
+                  />
+                </motion.div>
+              )}
 
-          {/* Booking Status */}
-          {activeView === 'bookings' && (
-            <motion.div key="bookings" {...snappyVariants} className="h-full">
-              <BookingStatus 
-                onBack={() => setActiveView('chat')} 
-                onOpenProfileSettings={() => setActiveView('profile')} // Profile Trigger
-              />
-            </motion.div>
-          )}
+              {activeView === 'catalog' && (
+                <motion.div key="catalog" {...snappyVariants} className="h-full">
+                  <EquipmentCatalog 
+                    onBack={() => setActiveView('chat')} 
+                    onEquipmentSelected={(equipmentName) => {
+                      setDisplayedEquipment(equipmentName);
+                      setActiveView('chat');
+                    }}
+                    onOpenBookingStatus={() => setActiveView('bookings')}
+                    onOpenProfileSettings={() => setActiveView('profile')}
+                  />
+                </motion.div>
+              )}
 
-          {/* Profile & Settings */}
-          {activeView === 'profile' && (
-            <motion.div key="profile" {...snappyVariants} className="h-full">
-              <ProfileSettings 
-                onBack={() => setActiveView('chat')} 
-                onOpenBookingStatus={() => setActiveView('bookings')} 
-              />
-            </motion.div>
+              {activeView === 'directory' && (
+                <motion.div key="directory" {...snappyVariants} className="h-full">
+                  <DepartmentDirectory 
+                    onBack={() => setActiveView('chat')} 
+                    onOpenBookingStatus={() => setActiveView('bookings')}
+                    onOpenProfileSettings={() => setActiveView('profile')}
+                  />
+                </motion.div>
+              )}
+
+              {activeView === 'bookings' && (
+                <motion.div key="bookings" {...snappyVariants} className="h-full">
+                  <BookingStatus 
+                    onBack={() => setActiveView('chat')} 
+                    onOpenProfileSettings={() => setActiveView('profile')}
+                  />
+                </motion.div>
+              )}
+
+              {activeView === 'profile' && (
+                <motion.div key="profile" {...snappyVariants} className="h-full">
+                  <ProfileSettings 
+                    onBack={() => setActiveView('chat')} 
+                    onOpenBookingStatus={() => setActiveView('bookings')}
+                    
+                    onLogout={() => {
+                        setIsAuthenticated(false);
+                        setActiveView('chat');
+                    }}
+                  />
+                </motion.div>
+              )}
+            </>
           )}
 
         </AnimatePresence>
