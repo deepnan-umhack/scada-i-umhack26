@@ -161,7 +161,7 @@ const MainChat: React.FC<MainChatProps> = ({
           <div className="w-full max-w-2xl px-1 pb-1 md:pb-0">
             <div className="flex flex-row justify-start md:justify-center gap-2 mb-3 overflow-x-auto no-scrollbar pb-1">
                 {['Book room', 'Book equipment', 'Find the contact','Operating time','View history'].map(label => (
-                    <button key={label} className="text-[13px] border border-slate-300 px-5 py-2 rounded-2xl bg-white/50 hover:bg-white text-center transition-all whitespace-nowrap active:scale-95 font-medium text-slate-600 shadow-xs">
+                    <button key={label} onClick={() => setRequirement(label)} className="text-[13px] border border-slate-300 px-5 py-2 rounded-2xl bg-white/50 hover:bg-white text-center transition-all whitespace-nowrap active:scale-95 font-medium text-slate-600 shadow-xs">
                       {label}
                     </button>
                 ))}
