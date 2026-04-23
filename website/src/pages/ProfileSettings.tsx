@@ -9,9 +9,10 @@ import iconSearch from '../assets/Search.svg';
 interface ProfileProps {
   onBack: () => void;
   onOpenBookingStatus: () => void;
+  onLogout: () => void;
 }
 
-const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus }) => {
+const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
@@ -110,6 +111,7 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus }
             </div>
             
             <div className="space-y-6 pb-20">
+              
               {/* Hero Card */}
               <div className="bg-white rounded-[3rem] p-10 md:p-14 shadow-sm border border-slate-100/50 flex flex-col md:flex-row items-center gap-12">
                 <div className="relative shrink-0">
@@ -130,12 +132,13 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus }
                   </div>
                   <div className="mt-10 flex flex-wrap justify-center md:justify-start gap-4">
                     <button className="px-12 py-4 bg-slate-900 text-white rounded-2xl text-[13px] font-bold uppercase tracking-widest active:scale-95 transition-all shadow-sm">Update CV</button>
-                    <button className="px-12 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[13px] font-bold uppercase tracking-widest active:scale-95 transition-all shadow-sm">Sign Out</button>
+                    <button onClick={onLogout} className="px-12 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[13px] font-bold uppercase tracking-widest active:scale-95 transition-all shadow-sm">Sign Out</button>
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
                 {/* Academic Identity */}
                 <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100/50">
                   <h3 className="text-[15px] font-bold text-slate-300 uppercase tracking-widest mb-8">Faculty Identity</h3>
@@ -184,7 +187,6 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus }
             </div>
           </div>
         </div>
-        {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
       </main>
     </div>
   );

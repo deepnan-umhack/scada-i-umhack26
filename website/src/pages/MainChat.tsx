@@ -7,6 +7,10 @@ import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
 
 interface MainChatProps {
+  displayedSpace: string | null;
+  onSetDisplayedSpace: (space: string | null) => void;
+  displayedEquipment: string | null;
+  onSetDisplayedEquipment: (equipment: string | null) => void;
   onOpenBrowseSpaces: () => void;
   onOpenBookingStatus: () => void;
   onOpenEquipmentCatalog: () => void;
@@ -15,6 +19,10 @@ interface MainChatProps {
 }
 
 const MainChat: React.FC<MainChatProps> = ({ 
+  displayedSpace,
+  onSetDisplayedSpace,
+  displayedEquipment,
+  onSetDisplayedEquipment,
   onOpenBrowseSpaces, 
   onOpenBookingStatus, 
   onOpenEquipmentCatalog, 
@@ -45,9 +53,13 @@ const MainChat: React.FC<MainChatProps> = ({
 
   const handleNewChat = () => {
     setRequirement('');
+    onSetDisplayedSpace(null);
+    onSetDisplayedEquipment(null);
     setIsSidebarOpen(false);
   };
 
+  const handleClearSpace = () => onSetDisplayedSpace(null);
+  const handleClearEquipment = () => onSetDisplayedEquipment(null);
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
   return (
@@ -69,7 +81,7 @@ const MainChat: React.FC<MainChatProps> = ({
             <button className="absolute left-4 top-3.5 h-4 w-4 z-10 hover:scale-110 transition-transform active:opacity-50">
               <img src={iconSearch} alt="Search" className="h-full w-full opacity-40 group-focus-within:opacity-80 transition-opacity" />
             </button>
-            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-sm border-none shadow-sm outline-none]" />
+            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-base border-none shadow-sm outline-none]" />
           </div>
           <div className="space-y-2">
             <button onClick={handleNewChat} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
@@ -141,27 +153,59 @@ const MainChat: React.FC<MainChatProps> = ({
 
           {/* Chat area */}
           <div className="w-full max-w-2xl px-1 pb-1 md:pb-0">
-            <div className="flex flex-row justify-start md:justify-center gap-2 mb-3 overflow-x-auto no-scrollbar pb-1">
+            
+            {/* Suggestion buttons */}
+            {requirement === '' && (
+              <div className="flex flex-row justify-start md:justify-center gap-2 mb-3 overflow-x-auto no-scrollbar pb-1">
                 {['Book room', 'Book equipment', 'Find the contact','Operating time','View history'].map(label => (
-                    <button key={label} className="text-[13px] border border-slate-300 px-5 py-2 rounded-2xl bg-white/50 hover:bg-white text-center transition-all whitespace-nowrap active:scale-95 font-medium text-slate-600 shadow-xs">
-                      {label}
-                    </button>
+                  <button 
+                    key={label} 
+                    onClick={() => setRequirement(label)} 
+                    className="text-[13px] border border-slate-300 px-5 py-2 rounded-2xl bg-white/50 hover:bg-white text-center transition-all whitespace-nowrap active:scale-95 font-medium text-slate-600 shadow-xs"
+                  >
+                    {label}
+                  </button>
                 ))}
-            </div>
+              </div>
+            )}
 
-            <div className="bg-white rounded-full md:rounded-4xl px-6 py-2 md:py-3 border border-white focus-within:border-slate-200 transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center min-h-14 md:min-h-20 relative overflow-hidden">
-              <textarea 
-                ref={textareaRef}
-                value={requirement}
-                onChange={handleInputChange}
-                placeholder="Type in your requirement" 
-                rows={1}
-                className="flex-1 bg-transparent border-none focus:ring-0 text-[16px] outline-none text-slate-700 resize-none placeholder-slate-300 font-base leading-normal h-auto no-scrollbar max-h-40 overflow-y-hidden py-2" 
-              />
-              <div className="flex items-center shrink-0 ml-2">
-                <button className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center">
-                  <span className="text-2xl text-slate-300 rotate-[-15deg] block group-hover:text-blue-500 group-active:text-blue-600 transition-colors leading-none">➤</span>
-                </button>
+            <div className="bg-white rounded-[28px] md:rounded-4xl px-6 py-2.5 md:py-3.5 border border-white focus-within:border-slate-200 transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center relative overflow-hidden">
+              <div className="flex flex-col w-full py-2">
+                
+                {(displayedSpace || displayedEquipment) && (
+                  <div className="flex flex-wrap gap-2 items-center mb-1.5">
+                    {displayedSpace && (
+                      <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 text-xs font-medium text-slate-700">
+                        <span>space: <span className="font-semibold">{displayedSpace}</span></span>
+                        <button onClick={handleClearSpace} className="hover:text-slate-900 transition-colors">✕</button>
+                      </div>
+                    )}
+                    {displayedEquipment && (
+                      <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 text-xs font-medium text-blue-700">
+                        <span>equipment: <span className="font-semibold">{displayedEquipment}</span></span>
+                        <button onClick={handleClearEquipment} className="hover:text-blue-900 transition-colors">✕</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+
+                {/* Input row */}
+                <div className="flex items-center gap-2 w-full">
+                  <textarea 
+                    ref={textareaRef}
+                    value={requirement}
+                    onChange={handleInputChange}
+                    placeholder="Type in your requirement" 
+                    rows={1}
+                    className="flex-1 bg-transparent border-none focus:ring-0 text-[16px] outline-none text-slate-700 resize-none placeholder-slate-300 font-normal leading-normal h-auto no-scrollbar max-h-40 overflow-y-hidden py-1" 
+                  />
+                  <div className="flex items-center shrink-0">
+                    <button className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center">
+                      <span className="text-2xl text-slate-300 rotate-[-15deg] block group-hover:text-blue-500 group-active:text-blue-600 transition-colors leading-none">➤</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  

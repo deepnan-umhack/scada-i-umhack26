@@ -19,11 +19,12 @@ import LRP from '../assets/LRP.png';
 
 interface BrowseSpacesProps {
   onBack: () => void;
+  onSpaceSelected: (spaceName: string) => void;
   onOpenBookingStatus: () => void;
   onOpenProfileSettings: () => void;
 }
 
-const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onOpenBookingStatus, onOpenProfileSettings }) => {
+const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onSpaceSelected, onOpenBookingStatus, onOpenProfileSettings }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
@@ -31,6 +32,10 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onOpenBookingStatus
   const handleNewChat = () => {
     setIsSidebarOpen(false);
     onBack();
+  };
+
+  const handleSpaceClick = (spaceName: string) => {
+    onSpaceSelected(spaceName);
   };
 
   const spaces = [
@@ -48,7 +53,7 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onOpenBookingStatus
   ];
 
   return (
-    <div className="fixed inset-0 w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden overscroll-none touch-none">
+    <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden">
       
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/5 z-70 md:hidden" onClick={() => setIsSidebarOpen(false)} />
@@ -140,7 +145,7 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onOpenBookingStatus
           <div className="pb-24">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 md:gap-x-8 gap-y-8 md:gap-y-12 w-full">
               {spaces.map((space) => (
-                <div key={space.id} className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform">
+                <div key={space.id} onClick={() => handleSpaceClick(space.name)} className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform">
                   <div className="relative w-full aspect-4/3 overflow-hidden rounded-3xl md:rounded-4xl shadow-sm border border-slate-200/50 bg-slate-100">
                     <img src={space.img} alt={space.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
                     <div className="absolute inset-0 bg-linear-to-t from-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
