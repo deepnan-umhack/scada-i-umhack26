@@ -21,18 +21,25 @@ interface EquipmentCatalogProps {
   onOpenProfileSettings: () => void;
 }
 
-const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ onBack, onEquipmentSelected, onOpenBookingStatus, onOpenProfileSettings }) => {
+const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ 
+  onBack, 
+  onEquipmentSelected, 
+  onOpenBookingStatus, 
+  onOpenProfileSettings 
+}) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<{name: string, id: number} | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
+  const handleNewChat = () => { setIsSidebarOpen(false); onBack(); };
 
-  const handleNewChat = () => {
-    setIsSidebarOpen(false);
-    onBack();
-  };
-
-  const handleEquipmentClick = (equipmentName: string) => {
-    onEquipmentSelected(equipmentName);
+  const handleConfirmQuantity = () => {
+    if (selectedItem) {
+      onEquipmentSelected(`${selectedItem.name} (x${quantity})`);
+      setSelectedItem(null);
+      setQuantity(1);
+    }
   };
 
   const equipment = [
@@ -122,7 +129,7 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ onBack, onEquipment
           </div>
         </header>
 
-        {/* Main */}
+        {/* Catalog Grid Section */}
         <div className="flex-1 overflow-y-auto no-scrollbar touch-pan-y px-4 md:px-10">
           <div className="sticky -top-px z-40 bg-[#F0F4F8] pt-2 pb-6 mb-2 -mx-4 px-4 -mt-1 flex items-center justify-between">
               <div className="flex flex-col">
@@ -137,13 +144,17 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ onBack, onEquipment
           <div className="pb-24">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 md:gap-x-8 gap-y-8 md:gap-y-12 w-full">
               {equipment.map((item) => (
-                <div key={item.id} onClick={() => handleEquipmentClick(item.name)} className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform">
-                  <div className="relative w-full aspect-4/3 overflow-hidden rounded-3xl md:rounded-4xl shadow-sm border border-slate-200/50 bg-slate-100">
+                <div 
+                  key={item.id} 
+                  onClick={() => setSelectedItem(item)} 
+                  className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+                >
+                  <div className="relative w-full aspect-4/3 overflow-hidden rounded-3xl md:rounded-4xl shadow-sm border border-slate-200/50 bg-white">
                     <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
                     <div className="absolute inset-0 bg-linear-to-t from-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   </div>
-                  <div className="mt-3 md:mt-4 px-1">
-                    <span className="text-[13px] md:text-[15px] font-medium text-center text-slate-800 leading-snug block group-hover:text-blue-600 transition-colors">
+                  <div className="mt-3 md:mt-4 px-1 text-center">
+                    <span className="text-[13px] md:text-[15px] font-medium text-slate-800 leading-snug block group-hover:text-blue-600 transition-colors">
                       {item.name}
                     </span>
                   </div>
@@ -152,7 +163,44 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ onBack, onEquipment
             </div>
           </div>
         </div>
-        {/* Disclaimer: DeepNaN is AI and can make mistakes. */}
+
+        {/* Quantity Selector */}
+        {selectedItem && (
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm">
+            <div className="bg-white rounded-4xl p-8 w-full max-w-xs shadow-xl border border-white animate-in zoom-in-95 duration-200">
+              <h3 className="text-lg font-bold text-slate-900 text-center mb-1">{selectedItem.name}</h3>
+              <p className="text-sm text-slate-500 text-center mb-6">How many do you need?</p>
+              
+              <div className="flex items-center justify-center gap-6 mb-8">
+                <button 
+                  onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-xl font-bold hover:bg-slate-200 active:scale-90 transition-all border border-slate-100"
+                >-</button>
+                <span className="text-2xl font-bold w-8 text-center">{quantity}</span>
+                <button 
+                  onClick={() => setQuantity(q => q + 1)}
+                  className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-xl font-bold hover:bg-slate-200 active:scale-90 transition-all border border-slate-100"
+                >+</button>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={handleConfirmQuantity}
+                  className="w-full py-4 bg-blue-800 text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest active:scale-95 transition-all shadow-lg"
+                >
+                  Add to Chat
+                </button>
+                <button 
+                  onClick={() => {setSelectedItem(null); setQuantity(1);}}
+                  className="w-full py-3 text-slate-400 font-bold text-[11px] uppercase tracking-widest hover:text-slate-600 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
       </main>
     </div>
   );

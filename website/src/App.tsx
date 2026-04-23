@@ -11,12 +11,12 @@ import ProfileSettings from './pages/ProfileSettings';
 
 function App() {
   const [showLanding, setShowLanding] = useState(true);
-
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   const [activeView, setActiveView] = useState<'chat' | 'browse' | 'bookings' | 'catalog' | 'directory' | 'profile'>('chat');
   const [displayedSpace, setDisplayedSpace] = useState<string | null>(null);
-  const [displayedEquipment, setDisplayedEquipment] = useState<string | null>(null);
+  const [displayedEquipment, setDisplayedEquipment] = useState<string[]>([]);
+  const [displayedDepts, setDisplayedDepts] = useState<string[]>([]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -35,17 +35,14 @@ function App() {
   return (
     <div className="relative w-full h-svh bg-[#F0F4F8] overflow-hidden">
       
-      {/* Main Logic */}
       <div className="w-full h-full">
         <AnimatePresence mode="wait">
           
           {!isAuthenticated ? (
-
             <motion.div key="auth" {...snappyVariants} className="h-full">
               <AuthPage onLoginSuccess={() => setIsAuthenticated(true)} />
             </motion.div>
           ) : (
-
             <>
               {activeView === 'chat' && (
                 <motion.div key="chat" {...snappyVariants} className="h-full">
@@ -54,6 +51,8 @@ function App() {
                     onSetDisplayedSpace={setDisplayedSpace}
                     displayedEquipment={displayedEquipment}
                     onSetDisplayedEquipment={setDisplayedEquipment}
+                    displayedDepts={displayedDepts}
+                    onSetDisplayedDepts={setDisplayedDepts}
                     onOpenBrowseSpaces={() => setActiveView('browse')} 
                     onOpenBookingStatus={() => setActiveView('bookings')} 
                     onOpenEquipmentCatalog={() => setActiveView('catalog')}
@@ -82,7 +81,7 @@ function App() {
                   <EquipmentCatalog 
                     onBack={() => setActiveView('chat')} 
                     onEquipmentSelected={(equipmentName) => {
-                      setDisplayedEquipment(equipmentName);
+                      setDisplayedEquipment(prev => [...prev, equipmentName]);
                       setActiveView('chat');
                     }}
                     onOpenBookingStatus={() => setActiveView('bookings')}
@@ -95,6 +94,10 @@ function App() {
                 <motion.div key="directory" {...snappyVariants} className="h-full">
                   <DepartmentDirectory 
                     onBack={() => setActiveView('chat')} 
+                    onDepartmentSelected={(deptName) => {
+                      setDisplayedDepts(prev => [...prev, deptName]);
+                      setActiveView('chat');
+                    }}
                     onOpenBookingStatus={() => setActiveView('bookings')}
                     onOpenProfileSettings={() => setActiveView('profile')}
                   />
@@ -115,10 +118,12 @@ function App() {
                   <ProfileSettings 
                     onBack={() => setActiveView('chat')} 
                     onOpenBookingStatus={() => setActiveView('bookings')}
-                    
                     onLogout={() => {
                         setIsAuthenticated(false);
                         setActiveView('chat');
+                        setDisplayedEquipment([]);
+                        setDisplayedDepts([]);
+                        setDisplayedSpace(null);
                     }}
                   />
                 </motion.div>

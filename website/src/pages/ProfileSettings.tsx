@@ -40,7 +40,7 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
             <button className="absolute left-4 top-3.5 h-4 w-4 z-10 hover:scale-110 transition-transform active:opacity-50">
               <img src={iconSearch} alt="Search" className="h-full w-full opacity-40 group-focus-within:opacity-80 transition-opacity" />
             </button>
-            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-sm border-none shadow-sm outline-none" />
+            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-base border-none shadow-sm outline-none" />
           </div>
           <div className="space-y-2">
             <button onClick={handleNewChat} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
@@ -181,7 +181,7 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
                       </div>
                     </div>
                   </div>
-
+                  {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
                 </div>
               </div>
             </div>
