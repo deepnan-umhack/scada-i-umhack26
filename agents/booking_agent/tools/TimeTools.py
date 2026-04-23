@@ -38,13 +38,16 @@ class ConvertUserTimeToUTCInput(BaseModel):
         ..., 
         description="The local date and time in naive ISO 8601 format (e.g., '2026-04-20T15:00:00'). Do NOT include timezone offsets here."
     )
-    user_timezone: str = Field(
-        ..., 
-        description="The IANA timezone database string of the user (e.g., 'America/New_York', 'Asia/Kuala_Lumpur', 'Europe/London')."
+    user_timezone: Optional[str] = Field(
+        default="Asia/Kuala_Lumpur",
+        description="The IANA timezone database string of the user (e.g., 'America/New_York', 'Asia/Kuala_Lumpur', 'Europe/London'). Defaults to 'Asia/Kuala_Lumpur' when omitted."
     )
 
 @tool(args_schema=ConvertUserTimeToUTCInput)
-async def convert_user_time_to_utc_tool(local_time_string: str, user_timezone: str) -> str:
+async def convert_user_time_to_utc_tool(
+    local_time_string: str,
+    user_timezone: Optional[str] = "Asia/Kuala_Lumpur",
+) -> str:
     """
     Converts a user's local conversational time into the strict UTC format 
     required by the database and calendar APIs.
@@ -54,8 +57,9 @@ async def convert_user_time_to_utc_tool(local_time_string: str, user_timezone: s
         # 1. Parse the naive string (no timezone attached yet)
         local_dt = datetime.fromisoformat(local_time_string)
         
-        # 2. Grab the specific timezone rules
-        tz = ZoneInfo(user_timezone)
+        # 2. Grab the specific timezone rules (Malaysia as fallback)
+        effective_timezone = user_timezone or "Asia/Kuala_Lumpur"
+        tz = ZoneInfo(effective_timezone)
         
         # 3. Attach the timezone to the naive datetime
         local_dt_aware = local_dt.replace(tzinfo=tz)
@@ -65,6 +69,7 @@ async def convert_user_time_to_utc_tool(local_time_string: str, user_timezone: s
         
         return json.dumps({
             "status": "success",
+            "timezone_used": effective_timezone,
             "original_local_time": local_dt_aware.isoformat(),
             "converted_utc_time": utc_dt.isoformat()
         })
