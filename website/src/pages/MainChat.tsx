@@ -18,6 +18,12 @@ interface MainChatProps {
   onOpenProfileSettings: () => void;
 }
 
+// 1. Define how a message object looks
+interface Message {
+  role: 'user' | 'agent';
+  text: string;
+}
+
 const MainChat: React.FC<MainChatProps> = ({ 
   displayedSpace,
   onSetDisplayedSpace,
@@ -32,6 +38,12 @@ const MainChat: React.FC<MainChatProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [requirement, setRequirement] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 2. Add states for the chat interaction
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [threadId] = useState(() => Math.random().toString(36).substring(7));
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -47,12 +59,70 @@ const MainChat: React.FC<MainChatProps> = ({
     }
   }, [requirement]);
 
+  // Auto-scroll to the bottom when a new message appears
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setRequirement(e.target.value);
   };
 
+  // 3. The actual API integration function
+  const handleSendMessage = async () => {
+    if (!requirement.trim() || isLoading) return;
+
+    const userText = requirement;
+    setRequirement(''); // Clear input immediately
+    
+    // Push user message to the screen
+    setMessages(prev => [...prev, { role: 'user', text: userText }]);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("https://scada-i-umhack26.onrender.com/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userText,
+          thread_id: threadId,
+          user_id: "user_01" // Swap this later with actual Auth data if needed
+        }),
+      });
+
+      if (!response.ok) throw new Error("Network response was not ok");
+      
+      const data = await response.json();
+      
+      // We now strictly grab the "reply" key from the JSON payload
+      const agentReply = data.reply;
+      
+      if (agentReply) {
+        setMessages(prev => [...prev, { role: 'agent', text: agentReply }]);
+      } else {
+        // Fallback just in case the backend sends an empty reply
+        setMessages(prev => [...prev, { role: 'agent', text: "Agent didn't have a response for that." }]);
+      }
+
+    } catch (error) {
+      console.error("Agent error:", error);
+      setMessages(prev => [...prev, { role: 'agent', text: "Connection failed. Please try again." }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Listen for the Enter key to send
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   const handleNewChat = () => {
     setRequirement('');
+    setMessages([]); // Clear the history
     onSetDisplayedSpace(null);
     onSetDisplayedEquipment(null);
     setIsSidebarOpen(false);
@@ -134,28 +204,52 @@ const MainChat: React.FC<MainChatProps> = ({
           </div>
         </header>
 
-        {/* Main*/}
-        <div className="flex-1 flex flex-col items-start md:items-center px-5 md:px-10 justify-between pb-1 md:pb-10 overflow-hidden relative">
-          <div className="w-full flex flex-col items-start md:items-center mt-8 md:mt-16">
-            <div className="w-full text-left md:text-center">
-              <h2 className="text-2xl md:text-4xl text-slate-900 font-light">Hey username</h2>
-              <h1 className="text-4xl md:text-5xl font-bold mt-1 text-slate-900 leading-tight">Planning an event?</h1>
-              <p className="text-slate-500 mt-1 text-sm md:text-base font-medium">We'll sort out the perfect space & equipment.</p>
-            </div>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col items-center px-5 md:px-10 justify-between pb-1 md:pb-10 overflow-hidden relative">
+          
+          {/* 4. Conditional Rendering: Show Hero OR Chat History */}
+          {messages.length === 0 ? (
+            <div className="w-full flex flex-col items-start md:items-center mt-8 md:mt-16 flex-1">
+              <div className="w-full text-left md:text-center">
+                <h2 className="text-2xl md:text-4xl text-slate-900 font-light">Hey username</h2>
+                <h1 className="text-4xl md:text-5xl font-bold mt-1 text-slate-900 leading-tight">Planning an event?</h1>
+                <p className="text-slate-500 mt-1 text-sm md:text-base font-medium">We'll sort out the perfect space & equipment.</p>
+              </div>
 
-            {/* 3 Colourful Buttons */}
-            <div className="flex flex-col md:flex-row justify-start md:justify-center items-start md:items-center gap-4 md:gap-3 mt-10 w-full">
-              <button onClick={onOpenBrowseSpaces} className="px-10 py-3 bg-[#D4F7F2] hover:bg-[#bcf0e9] rounded-[20px] md:rounded-full text-[14px] md:text-[17px] font-medium transition-all shadow-sm active:scale-95 whitespace-nowrap">Browse Spaces</button>
-              <button onClick={onOpenEquipmentCatalog} className="px-10 py-3 bg-[#D6EAFB] hover:bg-[#c1e0f9] rounded-[20px] md:rounded-full text-[14px] md:text-[17px] font-medium transition-all shadow-sm active:scale-95 whitespace-nowrap">Equipment Catalog</button>
-              <button onClick={onOpenDepartmentDirectory} className="px-10 py-3 bg-[#D7DCFF] hover:bg-[#c2c9ff] rounded-[20px] md:rounded-full text-[14px] md:text-[17px] font-medium transition-all shadow-sm active:scale-95 whitespace-nowrap">Department Directory</button>
+              {/* 3 Colourful Buttons */}
+              <div className="flex flex-col md:flex-row justify-start md:justify-center items-start md:items-center gap-4 md:gap-3 mt-10 w-full">
+                <button onClick={onOpenBrowseSpaces} className="px-10 py-3 bg-[#D4F7F2] hover:bg-[#bcf0e9] rounded-[20px] md:rounded-full text-[14px] md:text-[17px] font-medium transition-all shadow-sm active:scale-95 whitespace-nowrap">Browse Spaces</button>
+                <button onClick={onOpenEquipmentCatalog} className="px-10 py-3 bg-[#D6EAFB] hover:bg-[#c1e0f9] rounded-[20px] md:rounded-full text-[14px] md:text-[17px] font-medium transition-all shadow-sm active:scale-95 whitespace-nowrap">Equipment Catalog</button>
+                <button onClick={onOpenDepartmentDirectory} className="px-10 py-3 bg-[#D7DCFF] hover:bg-[#c2c9ff] rounded-[20px] md:rounded-full text-[14px] md:text-[17px] font-medium transition-all shadow-sm active:scale-95 whitespace-nowrap">Department Directory</button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex-1 w-full max-w-3xl overflow-y-auto no-scrollbar pt-4 pb-20 flex flex-col gap-6">
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-sm ${
+                    msg.role === 'user' ? 'bg-[#1a1a1a] text-white rounded-br-none' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none'
+                  }`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-slate-200 px-5 py-3 rounded-2xl rounded-bl-none shadow-sm text-slate-400">
+                    <span className="animate-pulse">Thinking...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
 
-          {/* Chat area */}
-          <div className="w-full max-w-2xl px-1 pb-1 md:pb-0">
+          {/* Chat area Input */}
+          <div className="w-full max-w-3xl px-1 pb-1 md:pb-0 shrink-0">
             
             {/* Suggestion buttons */}
-            {requirement === '' && (
+            {messages.length === 0 && requirement === '' && (
               <div className="flex flex-row justify-start md:justify-center gap-2 mb-3 overflow-x-auto no-scrollbar pb-1">
                 {['Book room', 'Book equipment', 'Find the contact','Operating time','View history'].map(label => (
                   <button 
@@ -196,12 +290,18 @@ const MainChat: React.FC<MainChatProps> = ({
                     ref={textareaRef}
                     value={requirement}
                     onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    disabled={isLoading}
                     placeholder="Type in your requirement" 
                     rows={1}
-                    className="flex-1 bg-transparent border-none focus:ring-0 text-[16px] outline-none text-slate-700 resize-none placeholder-slate-300 font-normal leading-normal h-auto no-scrollbar max-h-40 overflow-y-hidden py-1" 
+                    className="flex-1 bg-transparent border-none focus:ring-0 text-[16px] outline-none text-slate-700 resize-none placeholder-slate-300 font-normal leading-normal h-auto no-scrollbar max-h-40 overflow-y-hidden py-1 disabled:opacity-50" 
                   />
                   <div className="flex items-center shrink-0">
-                    <button className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center">
+                    <button 
+                      onClick={handleSendMessage}
+                      disabled={isLoading || !requirement.trim()}
+                      className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
                       <span className="text-2xl text-slate-300 rotate-[-15deg] block group-hover:text-blue-500 group-active:text-blue-600 transition-colors leading-none">➤</span>
                     </button>
                   </div>
