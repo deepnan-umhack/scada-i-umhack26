@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import logo from '../assets/LogoS.svg';
 import iconMenu from '../assets/Menu.svg';
 import iconSettings from '../assets/Settings.svg';
 import iconInbox from '../assets/Inbox.svg';
 import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
+import { supabase } from '../lib/supabaseClient';
 
 interface BookingStatusProps {
   onBack: () => void;
@@ -24,99 +25,122 @@ interface BookingItem {
 
 const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSettings }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
+  // 1. Move columns into state so we can update them dynamically
+  const [columns, setColumns] = useState([
+    { id: "PENDING", title: "In Progress", headerColor: "text-amber-700", bgColor: "bg-amber-100/70", accent: "bg-amber-500", items: [] as BookingItem[] },
+    { id: "CONFIRMED", title: "Confirmed", headerColor: "text-emerald-700", bgColor: "bg-emerald-100/70", accent: "bg-emerald-500", items: [] as BookingItem[] },
+    { id: "CANCELLED", title: "Cancelled", headerColor: "text-rose-700", bgColor: "bg-rose-100/70", accent: "bg-rose-500", items: [] as BookingItem[] },
+    { id: "COMPLETED", title: "Completed", headerColor: "text-purple-700", bgColor: "bg-purple-100/70", accent: "bg-purple-500", items: [] as BookingItem[] }
+  ]);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
-
   const handleNewChat = () => {
     setIsSidebarOpen(false);
     onBack();
   };
 
-  const columns: {
-    id: string;
-    title: string;
-    headerColor: string;
-    bgColor: string;
-    accent: string;
-    items: BookingItem[];
-  }[] = [
-    {
-      id: "progress",
-      title: "In Progress",
-      headerColor: "text-amber-700",
-      bgColor: "bg-amber-100/70",
-      accent: "bg-amber-500",
-      items: [
-        {
-          title: "AI Project Showcase",
-          date: "23/4/2026 (Thursday)",
-          time: "10:00 a.m. - 4:00 p.m",
-          room: "Dewan Tan Sri Ainuddin",
-          equipment: "10 x Table, 3 x Camera, 2 x Microphone",
-          dept: "UTM Digital, Department of Deputy Vice-Chancellor (Student Affairs)",
-          promptdatetime: "16/4/2026, 10:00:40 a.m.",
-          prompt: "Assist me with the planning of AI project showcase on 23/4/2026 10 morning till 4 evening. Thanks."
+  // 2. Fetch the data when the page loads
+  useEffect(() => {
+    const fetchBookings = async () => {
+      setLoading(true);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log("NO USER LOGGED IN");
+        setLoading(false);
+        return;
+      }
+      
+      console.log("CURRENT USER ID:", user.id);
+
+      // Massive join query to get bookings + room names + equipment
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          purpose,
+          start_time,
+          end_time,
+          status,
+          created_at,
+          source_prompt, 
+          rooms ( name ),
+          booking_equipment (
+            quantity,
+            equipment_inventory ( name )
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      // ---- DEBUGGING LOGS ----
+      console.log("SUPABASE DATA:", data);
+      if (error) console.error("SUPABASE ERROR:", error);
+      // ------------------------
+
+      if (error) {
+        setLoading(false);
+        return;
+      }
+
+      // 3. Format the raw database rows into our nice UI objects
+      const formattedBookings: Record<string, BookingItem[]> = {
+        PENDING: [],
+        CONFIRMED: [],
+        CANCELLED: [],
+        COMPLETED: []
+      };
+
+      data?.forEach((row: any) => {
+        // Date formatting helpers
+        const startDate = new Date(row.start_time);
+        const endDate = new Date(row.end_time);
+        const createdDate = new Date(row.created_at);
+        
+        const dateStr = `${startDate.getDate()}/${startDate.getMonth() + 1}/${startDate.getFullYear()} (${startDate.toLocaleDateString('en-US', { weekday: 'long' })})`;
+        // By adding timeZone: 'UTC', we force the browser to stop adding 8 hours to the time
+const timeStr = `${startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })} - ${endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })}`;
+        // Format equipment like "3 x Microphone, 1 x Camera"
+        const equipStr = row.booking_equipment
+          ?.map((eq: any) => `${eq.quantity} x ${eq.equipment_inventory?.name || 'Item'}`)
+          .join(', ') || 'None';
+
+        const item: BookingItem = {
+          title: row.purpose || "Event Booking",
+          date: dateStr,
+          time: timeStr.toLowerCase(),
+          room: row.rooms?.name || "Unknown Room",
+          equipment: equipStr,
+          dept: "Your Department", 
+          promptdatetime: createdDate.toLocaleString('en-US'),
+          // Now pulling your actual source_prompt column!
+          prompt: row.source_prompt || row.purpose || "Generated from chat."
+        };
+
+        // Push to the correct column array based on DB status
+        const safeStatus = (row.status || 'PENDING').toUpperCase();
+        if (formattedBookings[safeStatus]) {
+          formattedBookings[safeStatus].push(item);
+        } else {
+          formattedBookings['PENDING'].push(item); 
         }
-      ]
-    },
-    {
-      id: "confirmed",
-      title: "Confirmed",
-      headerColor: "text-emerald-700",
-      bgColor: "bg-emerald-100/70",
-      accent: "bg-emerald-500",
-      items: [
-        {
-          title: "Media Interview Event",
-          date: "1/5/2026 (Friday)",
-          time: "4:00 p.m. - 6:30 p.m",
-          room: "Bilik Ilmuan 1",
-          equipment: "3 x Microphone, 1 x Camera",
-          dept: "Penerbit UTM Press, UTM Digital",
-          promptdatetime: "20/4/2026, 7:32:40 p.m.",
-          prompt: "Important pls arrnge me room for next Friday 4pm to 6.30pm Media Interview Event. Thank you."
-        }
-      ]
-    },
-    {
-      id: "cancelled",
-      title: "Cancelled",
-      headerColor: "text-rose-700",
-      bgColor: "bg-rose-100/70",
-      accent: "bg-rose-500",
-      items: [
-        {
-          title: "Japanese Beginner Class",
-          date: "15/4/2026 (Wednesday)",
-          time: "2:00 p.m. - 3:00 p.m",
-          room: "Syndicate Room",
-          equipment: "1 x Microphone, 1 x Projector",
-          dept: "Multimedia UTM",
-          promptdatetime: "12/4/2026, 3:03:20 p.m.",
-          prompt: "Please cancel the reservation of Japanese Beginner Class on this Wednesday 2pm to 3pm."
-        }
-      ]
-    },
-    {
-      id: "completed",
-      title: "Completed",
-      headerColor: "text-purple-700",
-      bgColor: "bg-purple-100/70",
-      accent: "bg-purple-500",
-      items: [
-        {
-          title: "Library Sharing Talk",
-          date: "9/3/2026 (Monday)",
-          time: "9:00 a.m. - 11:00 a.m",
-          room: "Bilik Ilmuan 3",
-          equipment: "3 x Microphone, 1 x Camera",
-          dept: "Library Administration, Multimedia UTM",
-          promptdatetime: "1/3/2026, 10:00:40 a.m.",
-          prompt: "Hey, Please help me plan room and stuff for 9/3/2026 9am to 11am Library Sharing Talk. Thanks."
-        }
-      ]
-    }
-  ];
+      });
+
+      setColumns(prevColumns => 
+        prevColumns.map(col => ({
+          ...col,
+          items: formattedBookings[col.id] || []
+        }))
+      );
+      
+      setLoading(false);
+    };
+
+    fetchBookings();
+  }, []);
 
   return (
     <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden">
@@ -153,7 +177,7 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
           <nav className="flex-1 overflow-y-auto space-y-1 min-h-0 custom-scrollbar text-sm text-gray-600">
             {['A 5 person room', 'Media interview event', 'AI project showcase room'].map((chat) => (
               <div key={chat} className="group flex items-center justify-between p-2 hover:bg-white/50 rounded-lg cursor-pointer transition-all active:scale-95">
-                <span className="truncate">{chat}</span><span className="text-gray-400 opacity-60">⋮</span>
+                <span className="truncate">{chat}</span><span  className="text-gray-400 opacity-60">⋮</span>
               </div>
             ))}
           </nav>
@@ -197,7 +221,7 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
         </header>
         
         {/* Main */}
-        <div className="flex-1 overflow-y-auto no-scrollbar touch-pan-y px-4 md:px-10">
+        <div className="flex-1 overflow-y-auto no-scrollbar touch-pan-y px-4 md:px-10 relative">
           <div className="sticky -top-px z-40 bg-[#F0F4F8] pt-2 pb-6 mb-2 -mx-4 px-4 -mt-1 flex items-center justify-between">
             <div className="flex flex-col">
               <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Bookings Status</h1>
@@ -208,60 +232,67 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
             </button>
           </div>
           
-          <div className="flex-1 flex flex-col md:flex-row gap-6 pb-24">
-            {columns.map((col) => (
-              <div key={col.id} className={`flex-1 min-w-[320px] md:min-w-0 ${col.bgColor} rounded-[2.5rem] p-5 md:p-6 flex flex-col border border-slate-200/40 shadow-inner h-fit`}>
-                <div className="flex items-center justify-between px-2 mb-6 shrink-0">
-                    <div className="flex items-center space-x-2.5">
-                        <div className={`w-2.5 h-2.5 rounded-full ${col.accent} shadow-sm`}></div>
-                        <span className={`font-bold uppercase tracking-wider text-xs md:text-[13px] ${col.headerColor}`}>{col.title}</span>
-                    </div>
-                    <span className="bg-white/80 px-2.5 py-0.5 rounded-full text-[11px] font-bold text-slate-400 shadow-sm">{col.items.length}</span>
+          {loading ? (
+            <div className="flex items-center justify-center h-40">
+              <p className="text-slate-500 font-medium animate-pulse">Loading your bookings...</p>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col md:flex-row gap-6 pb-24">
+              {columns.map((col) => (
+                <div key={col.id} className={`flex-1 min-w-[320px] md:min-w-0 ${col.bgColor} rounded-[2.5rem] p-5 md:p-6 flex flex-col border border-slate-200/40 shadow-inner h-fit`}>
+                  <div className="flex items-center justify-between px-2 mb-6 shrink-0">
+                      <div className="flex items-center space-x-2.5">
+                          <div className={`w-2.5 h-2.5 rounded-full ${col.accent} shadow-sm`}></div>
+                          <span className={`font-bold uppercase tracking-wider text-xs md:text-[13px] ${col.headerColor}`}>{col.title}</span>
+                      </div>
+                      <span className="bg-white/80 px-2.5 py-0.5 rounded-full text-[11px] font-bold text-slate-400 shadow-sm">{col.items.length}</span>
+                  </div>
+
+                  <div className="space-y-5">
+                      {col.items.length === 0 ? (
+                        <p className="text-center text-sm font-medium opacity-50 py-4" style={{ color: col.headerColor.replace('text-', '') }}>No bookings</p>
+                      ) : (
+                        col.items.map((item, i) => (
+                          <div key={i} className={`rounded-[2.2rem] p-1.5 ${col.accent}/60 shadow-sm border ${col.accent}/50 active:scale-[0.98] transition-transform`}>
+                              <div className="bg-white rounded-3xl p-6 md:p-7 shadow-sm border border-slate-100/50 hover:shadow-md transition-shadow group">
+                                  <div className="flex justify-between items-start mb-5">
+                                      <h3 className="font-bold text-slate-800 text-[16px] md:text-[17px] leading-tight flex-1">{item.title}</h3>
+                                  </div>
+                                  
+                                  <div className="space-y-2 mb-6">
+                                      {[
+                                          { label: 'Date', val: item.date },
+                                          { label: 'Time', val: item.time },
+                                          { label: 'Room', val: item.room },
+                                          { label: 'Equip.', val: item.equipment },
+                                          { label: 'Dept', val: item.dept },
+                                      ].map((row) => (
+                                          <div key={row.label} className="flex items-start text-[12px] md:text-[13px] leading-relaxed">
+                                              <span className="w-18 shrink-0 font-bold text-slate-400">{row.label}:</span>
+                                              <span className="text-slate-600 font-medium">{row.val}</span>
+                                          </div>
+                                      ))}
+                                  </div>
+
+                                  <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100/50">
+                                      <p className="text-[13px] text-slate-400 font-bold uppercase tracking-widest mb-1.5">User Prompt</p>
+                                      <p className="text-[10px] text-slate-400 italic leading-snug text-wrap mb-1">
+                                          {item.promptdatetime}
+                                      </p>
+                                      <p className="text-[11px] text-slate-500 italic leading-snug text-wrap">
+                                          "{item.prompt}"
+                                      </p>
+                                  </div>
+                              </div>
+                          </div>
+                      )))}
+
+                  </div>
                 </div>
-
-                <div className="space-y-5">
-                    {col.items.map((item, i) => (
-                        <div key={i} className={`rounded-[2.2rem] p-1.5 ${col.accent}/60 shadow-sm border ${col.accent}/50 active:scale-[0.98] transition-transform`}>
-                            <div className="bg-white rounded-3xl p-6 md:p-7 shadow-sm border border-slate-100/50 hover:shadow-md transition-shadow group">
-                                <div className="flex justify-between items-start mb-5">
-                                    <h3 className="font-bold text-slate-800 text-[16px] md:text-[17px] leading-tight flex-1">{item.title}</h3>
-                                </div>
-                                
-                                <div className="space-y-2 mb-6">
-                                    {[
-                                        { label: 'Date', val: item.date },
-                                        { label: 'Time', val: item.time },
-                                        { label: 'Room', val: item.room },
-                                        { label: 'Equip.', val: item.equipment },
-                                        { label: 'Dept', val: item.dept },
-                                    ].map((row) => (
-                                        <div key={row.label} className="flex items-start text-[12px] md:text-[13px] leading-relaxed">
-                                            <span className="w-18 shrink-0 font-bold text-slate-400">{row.label}:</span>
-                                            <span className="text-slate-600 font-medium">{row.val}</span>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100/50">
-                                    <p className="text-[13px] text-slate-400 font-bold uppercase tracking-widest mb-1.5">User Prompt</p>
-                                    <p className="text-[10px] text-slate-400 italic leading-snug text-wrap">
-                                        {item.promptdatetime}
-                                    </p>
-                                    <p className="text-[11px] text-slate-500 italic leading-snug text-wrap">
-                                        "{item.prompt}"
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-
-                </div>
-              </div>
-            ))}
-
-          </div>
+              ))}
+            </div>
+          )}
         </div>
-        {/* Disclaimer: DeepNaN is AI and can make mistakes. */}
       </main>
     </div>
   );
