@@ -18,8 +18,8 @@ interface BookingItem {
   room: string;
   equipment: string;
   dept: string;
+  promptdatetime: string;
   prompt: string;
-  tag?: string;
 }
 
 const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSettings }) => {
@@ -54,26 +54,27 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
           room: "Dewan Tan Sri Ainuddin",
           equipment: "10 x Table, 3 x Camera, 2 x Microphone",
           dept: "Library PSZ, Multimedia UTM",
+          promptdatetime: "Prompted on 13/3/2026, 10:00:40 a.m.",
           prompt: "Assist me with the planning of AI project showcase on 23/4/2026 10 morning till 4 evening. Thanks."
         }
       ]
     },
     {
-      id: "hold",
-      title: "On Hold",
+      id: "cancelled",
+      title: "Cancelled",
       headerColor: "text-rose-700",
       bgColor: "bg-rose-100/70",
       accent: "bg-rose-500",
       items: [
         {
           title: "Japanese Beginner Class",
-          tag: "Room occupied",
           date: "15/4/2026 (Wednesday)",
           time: "2:00 p.m. - 3:00 p.m",
           room: "Syndicate Room",
           equipment: "1 x Microphone, 1 x Projector",
           dept: "Multimedia UTM",
-          prompt: "Good morning, I would like to book a room for 20 students of Japanese Beginner Class on this Wednesday."
+          promptdatetime: "Prompted on 13/4/2026, 3:03:20 p.m.",
+          prompt: "Please cancel the reservation of Japanese Beginner Class on this Wednesday 2pm to 3pm."
         }
       ]
     },
@@ -91,6 +92,7 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
           room: "Bilik Ilmuan 3",
           equipment: "3 x Microphone, 1 x Camera",
           dept: "Library PSZ, Multimedia UTM",
+          promptdatetime: "Prompted on 13/3/2026, 10:00:40 a.m.",
           prompt: "Hey, Please help me plan room and stuff for next Friday 9am to 11am Library Sharing Talk. Thanks."
         }
       ]
@@ -204,11 +206,6 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
                             <div className="bg-white rounded-3xl p-6 md:p-7 shadow-sm border border-slate-100/50 hover:shadow-md transition-shadow group">
                                 <div className="flex justify-between items-start mb-5">
                                     <h3 className="font-bold text-slate-800 text-[16px] md:text-[17px] leading-tight flex-1">{item.title}</h3>
-                                    {item.tag && (
-                                        <span className="bg-rose-50 text-rose-500 text-[9px] md:text-[10px] font-bold px-2 py-0.5 rounded-full border border-rose-100 whitespace-nowrap italic ml-2">
-                                            {item.tag}
-                                        </span>
-                                    )}
                                 </div>
                                 
                                 <div className="space-y-2 mb-6">
@@ -228,6 +225,9 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
 
                                 <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100/50">
                                     <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest mb-1.5">User Prompt</p>
+                                    <p className="text-[10px] text-slate-400 italic leading-snug text-wrap">
+                                        {item.promptdatetime}
+                                    </p>
                                     <p className="text-[11px] text-slate-500 italic leading-snug text-wrap">
                                         "{item.prompt}"
                                     </p>
