@@ -23,10 +23,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); // Turn on the loading state
+    setLoading(true);
 
     if (isLogin) {
-      // --- SUPABASE LOGIN LOGIC ---
       const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -35,15 +34,13 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
       if (error) {
         alert("Login failed: " + error.message);
       } else {
-        onLoginSuccess(); // It worked! Move to the next screen
+        onLoginSuccess();
       }
     } else {
-      // --- SUPABASE SIGN UP LOGIC ---
       const { error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          // We save your extra form fields into their user profile data
           data: {
             full_name: formData.name,
             staff_id: formData.staffId,
@@ -56,18 +53,22 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
         alert("Sign up failed: " + error.message);
       } else {
         alert("Sign up successful! You can now log in.");
-        setIsLogin(true); // Flip the UI back to the login screen automatically
+        setIsLogin(true);
       }
     }
     
-    setLoading(false); // Turn off the loading state
+    setLoading(false);
+  };
+
+  const handleBlur = () => {
+    window.scrollTo({ top: 0, left: 0 });
   };
 
   return (
-    <div className="flex h-svh w-full bg-[#F0F4F8] items-center justify-center px-6 overflow-hidden">
+    <div className="flex h-full w-full bg-[#F0F4F8] items-center justify-center px-6 overflow-hidden">
       <div className="w-full max-w-md flex flex-col items-center">
         
-        {/* Logo*/}
+        {/* Logo */}
         <div className="mb-12">
           <img src={logo} alt="DeepNaN Logo" className="h-10 md:h-12 w-auto" />
         </div>
@@ -75,32 +76,35 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
         {/* Auth Form */}
         <form onSubmit={handleSubmit} className="w-full space-y-4">
           {!isLogin && (
-            <>
+            <div className="space-y-4">
               <input
                 type="text"
                 name="name"
                 placeholder="Full Name"
                 required
-                className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700"
+                className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700 text-[16px]"
                 onChange={handleInputChange}
+                onBlur={handleBlur}
               />
               <input
                 type="text"
                 name="staffId"
                 placeholder="Staff ID"
                 required
-                className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700"
+                className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700 text-[16px]"
                 onChange={handleInputChange}
+                onBlur={handleBlur}
               />
               <input
                 type="tel"
                 name="phone"
                 placeholder="Phone Number"
                 required
-                className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700"
+                className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700 text-[16px]"
                 onChange={handleInputChange}
+                onBlur={handleBlur}
               />
-            </>
+            </div>
           )}
 
           <input
@@ -108,8 +112,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
             name="email"
             placeholder="Email Address"
             required
-            className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700"
+            className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700 text-[16px]"
             onChange={handleInputChange}
+            onBlur={handleBlur}
           />
           
           <input
@@ -117,15 +122,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
             name="password"
             placeholder="Password"
             required
-            className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700"
+            className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700 text-[16px]"
             onChange={handleInputChange}
+            onBlur={handleBlur}
           />
 
-          {/* 4. UPDATED BUTTON: Disables when loading and changes text */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-white py-4 rounded-full shadow-md font-bold uppercase tracking-widest text-[14px] active:scale-95 transition-all mt-4 border border-slate-50 flex items-center justify-center disabled:opacity-50"
+            className="w-full bg-white py-4 rounded-full shadow-md font-bold uppercase tracking-widest text-[13px] active:scale-95 transition-all mt-4 border border-slate-50 flex items-center justify-center disabled:opacity-50"
           >
             <span className="text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-cyan-400">
               {loading ? 'Processing...' : (isLogin ? 'Login' : 'Sign Up')}

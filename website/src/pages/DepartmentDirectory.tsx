@@ -8,11 +8,17 @@ import iconSearch from '../assets/Search.svg';
 
 interface DirectoryProps {
   onBack: () => void;
+  onDepartmentSelected: (deptName: string) => void; 
   onOpenBookingStatus: () => void;
   onOpenProfileSettings: () => void;
 }
 
-const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingStatus, onOpenProfileSettings }) => {
+const DepartmentDirectory: React.FC<DirectoryProps> = ({ 
+  onBack, 
+  onDepartmentSelected, 
+  onOpenBookingStatus, 
+  onOpenProfileSettings 
+}) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -21,6 +27,10 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
   const handleNewChat = () => {
     setIsSidebarOpen(false);
     onBack();
+  };
+
+  const handleSelect = (name: string) => {
+    onDepartmentSelected(name);
   };
 
   const departments = [
@@ -37,7 +47,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
     "Office of Deputy Vice-Chancellor (Development)", "Penerbit UTM Press",
     "Quality and Risk Management Centre (QRIM)", "Research Management Centre (RMC)",
     "Student Recruitment and Admission Division", "Strategy Management Office (SMO)",
-    "UTM Academic Leadership (UTMLead)", "UTM International", "UTM Sports Excellence"
+    "UTM Academic Leadership (UTMLead)", "UTM International", "UTM Sports Excellence","Multimedia UTM", "Library Administration"
   ];
 
   const filteredDepts = departments.filter(dept => 
@@ -63,7 +73,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
             <button className="absolute left-4 top-3.5 h-4 w-4 z-10 hover:scale-110 transition-transform active:opacity-50">
               <img src={iconSearch} alt="Search" className="h-full w-full opacity-40 group-focus-within:opacity-80 transition-opacity" />
             </button>
-            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-sm border-none shadow-sm outline-none" />
+            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-base border-none shadow-sm outline-none" />
           </div>
           <div className="space-y-2">
             <button onClick={handleNewChat} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
@@ -75,7 +85,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
           </div>
           <div className="pt-4 px-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Chats</div>
           <nav className="flex-1 overflow-y-auto space-y-1 min-h-0 custom-scrollbar text-sm text-gray-600">
-            {['A 5 person room', 'Media interview event', 'AI project showcase room'].map((chat) => (
+            {['A 5 person room', 'Media interview event'].map((chat) => (
               <div key={chat} className="group flex items-center justify-between p-2 hover:bg-white/50 rounded-lg cursor-pointer transition-all active:scale-95">
                 <span className="truncate">{chat}</span><span className="text-gray-400 opacity-60">⋮</span>
               </div>
@@ -148,6 +158,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
             {filteredDepts.map((dept, index) => (
               <div 
                 key={index} 
+                onClick={() => handleSelect(dept)} 
                 className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100/50 hover:shadow-md transition-all group active:scale-[0.99] cursor-pointer"
               >
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -183,7 +194,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
               </div>
             )}
           </div>
-          {/* Disclaimer: DeepNaN is AI and can make mistakes. */}
+          {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
         </div>
       </main>
     </div>

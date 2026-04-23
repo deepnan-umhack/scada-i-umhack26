@@ -53,9 +53,28 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
           time: "10:00 a.m. - 4:00 p.m",
           room: "Dewan Tan Sri Ainuddin",
           equipment: "10 x Table, 3 x Camera, 2 x Microphone",
-          dept: "Library PSZ, Multimedia UTM",
+          dept: "UTM Digital, Department of Deputy Vice-Chancellor (Student Affairs)",
           promptdatetime: "16/4/2026, 10:00:40 a.m.",
           prompt: "Assist me with the planning of AI project showcase on 23/4/2026 10 morning till 4 evening. Thanks."
+        }
+      ]
+    },
+    {
+      id: "confirmed",
+      title: "Confirmed",
+      headerColor: "text-emerald-700",
+      bgColor: "bg-emerald-100/70",
+      accent: "bg-emerald-500",
+      items: [
+        {
+          title: "Media Interview Event",
+          date: "1/5/2026 (Friday)",
+          time: "4:00 p.m. - 6:30 p.m",
+          room: "Bilik Ilmuan 1",
+          equipment: "3 x Microphone, 1 x Camera",
+          dept: "Penerbit UTM Press, UTM Digital",
+          promptdatetime: "20/4/2026, 7:32:40 p.m.",
+          prompt: "Important pls arrnge me room for next Friday 4pm to 6.30pm Media Interview Event. Thank you."
         }
       ]
     },
@@ -81,19 +100,19 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
     {
       id: "completed",
       title: "Completed",
-      headerColor: "text-emerald-700",
-      bgColor: "bg-emerald-100/70",
-      accent: "bg-emerald-500",
+      headerColor: "text-purple-700",
+      bgColor: "bg-purple-100/70",
+      accent: "bg-purple-500",
       items: [
         {
           title: "Library Sharing Talk",
-          date: "20/3/2026 (Friday)",
+          date: "9/3/2026 (Monday)",
           time: "9:00 a.m. - 11:00 a.m",
           room: "Bilik Ilmuan 3",
           equipment: "3 x Microphone, 1 x Camera",
-          dept: "Library PSZ, Multimedia UTM",
-          promptdatetime: "13/3/2026, 10:00:40 a.m.",
-          prompt: "Hey, Please help me plan room and stuff for next Friday 9am to 11am Library Sharing Talk. Thanks."
+          dept: "Library Administration, Multimedia UTM",
+          promptdatetime: "1/3/2026, 10:00:40 a.m.",
+          prompt: "Hey, Please help me plan room and stuff for 9/3/2026 9am to 11am Library Sharing Talk. Thanks."
         }
       ]
     }
