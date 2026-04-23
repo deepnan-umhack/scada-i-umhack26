@@ -54,7 +54,7 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
           room: "Dewan Tan Sri Ainuddin",
           equipment: "10 x Table, 3 x Camera, 2 x Microphone",
           dept: "Library PSZ, Multimedia UTM",
-          promptdatetime: "Prompted on 13/3/2026, 10:00:40 a.m.",
+          promptdatetime: "16/4/2026, 10:00:40 a.m.",
           prompt: "Assist me with the planning of AI project showcase on 23/4/2026 10 morning till 4 evening. Thanks."
         }
       ]
@@ -73,7 +73,7 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
           room: "Syndicate Room",
           equipment: "1 x Microphone, 1 x Projector",
           dept: "Multimedia UTM",
-          promptdatetime: "Prompted on 13/4/2026, 3:03:20 p.m.",
+          promptdatetime: "12/4/2026, 3:03:20 p.m.",
           prompt: "Please cancel the reservation of Japanese Beginner Class on this Wednesday 2pm to 3pm."
         }
       ]
@@ -92,7 +92,7 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
           room: "Bilik Ilmuan 3",
           equipment: "3 x Microphone, 1 x Camera",
           dept: "Library PSZ, Multimedia UTM",
-          promptdatetime: "Prompted on 13/3/2026, 10:00:40 a.m.",
+          promptdatetime: "13/3/2026, 10:00:40 a.m.",
           prompt: "Hey, Please help me plan room and stuff for next Friday 9am to 11am Library Sharing Talk. Thanks."
         }
       ]
@@ -224,7 +224,7 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
                                 </div>
 
                                 <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100/50">
-                                    <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest mb-1.5">User Prompt</p>
+                                    <p className="text-[13px] text-slate-400 font-bold uppercase tracking-widest mb-1.5">User Prompt</p>
                                     <p className="text-[10px] text-slate-400 italic leading-snug text-wrap">
                                         {item.promptdatetime}
                                     </p>
