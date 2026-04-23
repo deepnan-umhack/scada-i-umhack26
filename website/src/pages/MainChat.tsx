@@ -5,6 +5,7 @@ import iconSettings from '../assets/Settings.svg';
 import iconInbox from '../assets/Inbox.svg';
 import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
+import { supabase } from '../lib/supabaseClient';
 
 interface MainChatProps {
   displayedSpace: string | null;
@@ -44,6 +45,15 @@ const MainChat: React.FC<MainChatProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [threadId] = useState(() => Math.random().toString(36).substring(7));
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -86,7 +96,7 @@ const MainChat: React.FC<MainChatProps> = ({
         body: JSON.stringify({
           message: userText,
           thread_id: threadId,
-          user_id: "user_01" // Swap this later with actual Auth data if needed
+          user_id: user?.id || "user_01"
         }),
       });
 
@@ -211,7 +221,7 @@ const MainChat: React.FC<MainChatProps> = ({
           {messages.length === 0 ? (
             <div className="w-full flex flex-col items-start md:items-center mt-8 md:mt-16 flex-1">
               <div className="w-full text-left md:text-center">
-                <h2 className="text-2xl md:text-4xl text-slate-900 font-light">Hey username</h2>
+                <h2 className="text-2xl md:text-4xl text-slate-900 font-light">Hey {user?.user_metadata?.full_name || 'username'}</h2>
                 <h1 className="text-4xl md:text-5xl font-bold mt-1 text-slate-900 leading-tight">Planning an event?</h1>
                 <p className="text-slate-500 mt-1 text-sm md:text-base font-medium">We'll sort out the perfect space & equipment.</p>
               </div>
