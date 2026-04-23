@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import logo from '../assets/LogoS.svg';
 import iconMenu from '../assets/Menu.svg';
 import iconSettings from '../assets/Settings.svg';
 import iconInbox from '../assets/Inbox.svg';
 import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
+import iconInfo from '../assets/Info.svg';
 
 interface DirectoryProps {
   onBack: () => void;
@@ -21,6 +22,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showToast, setShowToast] = useState(false);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
@@ -32,6 +34,13 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
   const handleSelect = (name: string) => {
     onDepartmentSelected(name);
   };
+
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => setShowToast(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
 
   const departments = [
     "Admission Office", "Alumni Relations Unit", "Board of Directors", "Counseling Centre",
@@ -47,7 +56,8 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
     "Office of Deputy Vice-Chancellor (Development)", "Penerbit UTM Press",
     "Quality and Risk Management Centre (QRIM)", "Research Management Centre (RMC)",
     "Student Recruitment and Admission Division", "Strategy Management Office (SMO)",
-    "UTM Academic Leadership (UTMLead)", "UTM International", "UTM Sports Excellence","Multimedia UTM", "Library Administration"
+    "UTM Academic Leadership (UTMLead)", "UTM International", "UTM Sports Excellence",
+    "Multimedia UTM", "Library Administration"
   ];
 
   const filteredDepts = departments.filter(dept => 
@@ -57,6 +67,16 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
   return (
     <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden">
       
+      {/* Mobile Snackbar Tip */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-100 transition-all duration-500 ease-in-out px-6 w-full max-w-xs md:hidden ${
+        showToast ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+      }`}>
+        <div className="bg-slate-800 text-white py-3 px-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700">
+          <img src={iconInfo} className="h-4 w-4 invert opacity-80" alt="info" />
+          <p className="text-[12px] font-medium tracking-wide">Tap any card to tag it to your chat</p>
+        </div>
+      </div>
+
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/5 z-70 md:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
@@ -85,7 +105,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
           </div>
           <div className="pt-4 px-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Chats</div>
           <nav className="flex-1 overflow-y-auto space-y-1 min-h-0 custom-scrollbar text-sm text-gray-600">
-            {['A 5 person room', 'Media interview event'].map((chat) => (
+            {['A 5 person room', 'Media interview event', 'AI project showcase room'].map((chat) => (
               <div key={chat} className="group flex items-center justify-between p-2 hover:bg-white/50 rounded-lg cursor-pointer transition-all active:scale-95">
                 <span className="truncate">{chat}</span><span className="text-gray-400 opacity-60">⋮</span>
               </div>
@@ -125,20 +145,34 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
           </div>
         </header>
 
-        {/* Scrollable Content Area */}
+        {/* Content Area */}
         <div className="flex-1 overflow-y-auto no-scrollbar touch-pan-y px-4 md:px-10">
-          <div className="sticky -top-px z-40 bg-[#F0F4F8] pt-2 pb-6 mb-2 -mx-4 px-4 -mt-1">
-            <div className="flex items-center justify-between w-full mb-5">
+          <div className="sticky -top-px z-40 bg-[#F0F4F8] pt-2 pb-4 -mx-4 px-4 -mt-1">
+            <div className="flex items-center justify-between w-full mb-5 gap-4">
               <div className="flex flex-col">
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Department Directory</h1>
                 <p className="text-sm text-slate-500 font-medium">Contact and Office Information</p>
               </div>
-              <button onClick={onBack} className="p-1.5 bg-white shadow-sm border border-slate-100 hover:bg-slate-50 rounded-full transition-all active:scale-90 group shrink-0">
-                <span className="text-lg text-slate-400 group-hover:text-slate-600 transition-colors block leading-none px-1">✕</span>
-              </button>
+              
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="group relative flex items-center justify-end">
+                    <button 
+                      onClick={() => setShowToast(true)}
+                      className="flex items-center gap-2.5 bg-white border border-slate-200 h-9 px-3 rounded-full shadow-xs transition-all duration-500 ease-out max-w-10.5 md:group-hover:max-w-75 overflow-hidden whitespace-nowrap active:scale-95"
+                    >
+                        <img src={iconInfo} alt="Info" className="h-4 w-4 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity" />
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 hidden md:inline">
+                            Tap card to tag to chat
+                        </span>
+                    </button>
+                </div>
+
+                <button onClick={onBack} className="p-1.5 bg-white shadow-sm border border-slate-100 hover:bg-slate-50 rounded-full transition-all active:scale-90 group shrink-0 h-9 w-9 flex items-center justify-center">
+                  <span className="text-lg text-slate-700 group-hover:text-slate-600 transition-colors block leading-none">✕</span>
+                </button>
+              </div>
             </div>
 
-            {/* Filter Search Area */}
             <div className="relative w-full max-w-sm group">
               <button className="absolute left-4 top-3.5 h-4 w-4 z-10">
                 <img src={iconSearch} alt="Search" className="h-full w-full opacity-30 group-focus-within:opacity-60 transition-opacity" />
@@ -153,7 +187,6 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
             </div>
           </div>
 
-          {/* Directory Cards */}
           <div className="space-y-4 pb-24 mt-2">
             {filteredDepts.map((dept, index) => (
               <div 
