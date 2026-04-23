@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import logo from '../assets/LogoS.svg';
+import { supabase } from '../lib/supabaseClient';
 
 interface AuthPageProps {
   onLoginSuccess: () => void;
@@ -7,7 +8,7 @@ interface AuthPageProps {
 
 const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
-
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     staffId: '',
@@ -20,13 +21,46 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true); // Turn on the loading state
+
     if (isLogin) {
-      onLoginSuccess();
+      // --- SUPABASE LOGIN LOGIC ---
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (error) {
+        alert("Login failed: " + error.message);
+      } else {
+        onLoginSuccess(); // It worked! Move to the next screen
+      }
     } else {
-      setIsLogin(true);
+      // --- SUPABASE SIGN UP LOGIC ---
+      const { error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          // We save your extra form fields into their user profile data
+          data: {
+            full_name: formData.name,
+            staff_id: formData.staffId,
+            phone: formData.phone,
+          }
+        }
+      });
+
+      if (error) {
+        alert("Sign up failed: " + error.message);
+      } else {
+        alert("Sign up successful! You can now log in.");
+        setIsLogin(true); // Flip the UI back to the login screen automatically
+      }
     }
+    
+    setLoading(false); // Turn off the loading state
   };
 
   return (
@@ -87,13 +121,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
             onChange={handleInputChange}
           />
 
-          {/* Submit Button */}
+          {/* 4. UPDATED BUTTON: Disables when loading and changes text */}
           <button
             type="submit"
-            className="w-full bg-white py-4 rounded-full shadow-md font-bold uppercase tracking-widest text-[14px] active:scale-95 transition-all mt-4 border border-slate-50 flex items-center justify-center"
+            disabled={loading}
+            className="w-full bg-white py-4 rounded-full shadow-md font-bold uppercase tracking-widest text-[14px] active:scale-95 transition-all mt-4 border border-slate-50 flex items-center justify-center disabled:opacity-50"
           >
             <span className="text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-cyan-400">
-              {isLogin ? 'Login' : 'Sign Up'}
+              {loading ? 'Processing...' : (isLogin ? 'Login' : 'Sign Up')}
             </span>
           </button>
         </form>
