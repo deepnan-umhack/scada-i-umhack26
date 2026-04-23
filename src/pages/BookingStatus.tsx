@@ -98,7 +98,7 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
   ];
 
   return (
-    <div className="fixed inset-0 w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden overscroll-none touch-none">
+    <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden">
       
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/5 z-70 md:hidden" onClick={() => setIsSidebarOpen(false)} />

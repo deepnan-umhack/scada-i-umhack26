@@ -45,7 +45,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
   );
 
   return (
-    <div className="fixed inset-0 w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden overscroll-none touch-none">
+    <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden">
       
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/5 z-70 md:hidden" onClick={() => setIsSidebarOpen(false)} />
@@ -63,7 +63,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
             <button className="absolute left-4 top-3.5 h-4 w-4 z-10 hover:scale-110 transition-transform active:opacity-50">
               <img src={iconSearch} alt="Search" className="h-full w-full opacity-40 group-focus-within:opacity-80 transition-opacity" />
             </button>
-            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-base border-none shadow-sm outline-none" />
+            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-sm border-none shadow-sm outline-none" />
           </div>
           <div className="space-y-2">
             <button onClick={handleNewChat} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
@@ -115,7 +115,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
           </div>
         </header>
 
-        {/* Main */}
+        {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto no-scrollbar touch-pan-y px-4 md:px-10">
           <div className="sticky -top-px z-40 bg-[#F0F4F8] pt-2 pb-6 mb-2 -mx-4 px-4 -mt-1">
             <div className="flex items-center justify-between w-full mb-5">
@@ -183,8 +183,8 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
               </div>
             )}
           </div>
+          {/* Disclaimer: DeepNaN is AI and can make mistakes. */}
         </div>
-        {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
       </main>
     </div>
   );
