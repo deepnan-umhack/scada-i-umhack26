@@ -14,7 +14,8 @@ node_modules/
 .idea/
 coverage/
 *.egg-info/
-
+.env.local
+.env.*
 
 # Local Netlify folder
 .netlify
