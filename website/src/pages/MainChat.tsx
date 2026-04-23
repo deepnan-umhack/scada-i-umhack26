@@ -96,7 +96,10 @@ const MainChat: React.FC<MainChatProps> = ({
         body: JSON.stringify({
           message: userText,
           thread_id: threadId,
-          user_id: user?.id || "user_01"
+          // Sends the real database UUID
+          user_id: user?.id || "user_01",
+          // Sends the real name to the AI so it can greet them nicely
+          user_name: user?.user_metadata?.full_name || "Guest"
         }),
       });
 
