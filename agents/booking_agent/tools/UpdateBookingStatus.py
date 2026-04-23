@@ -17,6 +17,10 @@ DATABASE_URL = os.getenv("POSTGRES_URL")
 class UpdateBookingStatusInput(BaseModel):
     booking_id: str = Field(..., description="The UUID of the booking to update.")
     new_status: str = Field(..., description="The new status to apply (e.g., 'CANCELLED', 'CONFIRMED').")
+    source_prompt: str = Field(
+        ...,
+        description="Prompt that led to this status update (for example, a cancellation request)."
+    )
 
     @field_validator("new_status")
     @classmethod
@@ -28,7 +32,11 @@ class UpdateBookingStatusInput(BaseModel):
 # 2. Main Tool Logic
 # ------------------------------------------------------------------
 @tool(args_schema=UpdateBookingStatusInput)
-async def update_booking_status_tool(booking_id: str, new_status: str) -> str:
+async def update_booking_status_tool(
+    booking_id: str,
+    new_status: str,
+    source_prompt: str,
+) -> str:
     """
     Updates the status of an existing booking (used primarily for cancellations).
     Pass this directly to your async LangGraph node.
@@ -38,9 +46,14 @@ async def update_booking_status_tool(booking_id: str, new_status: str) -> str:
 
     conn = await asyncpg.connect(DATABASE_URL)
     try:
+        await conn.execute(
+            "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source_prompt TEXT;"
+        )
+
         query = """
             UPDATE bookings 
-            SET status = $1 
+            SET status = $1,
+                source_prompt = COALESCE($3, source_prompt)
             WHERE id = $2
             RETURNING id;
         """
@@ -49,7 +62,8 @@ async def update_booking_status_tool(booking_id: str, new_status: str) -> str:
         updated_id = await conn.fetchval(
             query, 
             new_status, 
-            booking_id
+            booking_id,
+            source_prompt,
         )
         
         # If fetchval returns None, it means the WHERE clause didn't match any rows
@@ -87,7 +101,8 @@ if __name__ == "__main__":
         # IMPORTANT: I pasted the successful booking_id from your previous test here!
         test_payload = {
             "booking_id": "6ee53cd9-4e96-4ab0-b057-e527be7849f8", 
-            "new_status": "Cancelled" 
+            "new_status": "Cancelled",
+            "source_prompt": "Please cancel my booking for this afternoon."
         }
 
         print(f"\nAttempting to update booking {test_payload['booking_id']} to '{test_payload['new_status']}'...")

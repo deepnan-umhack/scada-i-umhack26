@@ -1,7 +1,7 @@
 from typing import Literal
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import AIMessage, SystemMessage, trim_messages
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, trim_messages
 from langgraph.graph import StateGraph, END
 import os
 from dotenv import load_dotenv, find_dotenv
@@ -13,6 +13,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 # Import your state and workers
 from state import AgentState
 from booking_agent.booking_agent import booking_worker
+from orchestrator.prompts import build_supervisor_prompt
 # from esg_agent import esg_worker     # Uncomment when ready
 # from hvac_agent import hvac_worker   # Uncomment when ready
 
@@ -27,19 +28,29 @@ async def booking_node(state: AgentState) -> dict:
     """Adapter node for the Booking Agent. Enforces Context Isolation."""
     print('\n[ROUTER] 🔀 Routing to Booking Agent')
 
-    token_counter_llm = ChatOpenAI(model="gpt-4o-mini")
+    token_counter_llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv("Z_AI_API_KEY"),)
 
-    # 2. Trim the messages BEFORE handing them to the worker
-    trimmed_history = trim_messages(
-        state["messages"],
-        max_tokens=4000, 
-        strategy="last",
-        token_counter=token_counter_llm,
-        include_system=False 
-    )
+    # 2. Extract ONLY the Supervisor's command (the very last message in the state)
+    boss_command = state["messages"][-1]
 
-    # 3. Hand the worker ONLY the safely trimmed history
-    safe_state = {"messages": trimmed_history}
+    latest_user_prompt = None
+    for msg in reversed(state["messages"]):
+        if getattr(msg, "type", None) == "human" and getattr(msg, "content", None):
+            latest_user_prompt = str(msg.content)
+            break
+
+    # 3. Hand the worker ONLY the command, blinding it to the rest of the chat history
+    safe_messages = [boss_command]
+    if latest_user_prompt:
+        safe_messages.append(
+            HumanMessage(
+                content=f"[USER REQUEST CONTEXT]: {latest_user_prompt}",
+                name="User_Context"
+            )
+        )
+    safe_state = {"messages": safe_messages}
+    
+    # 4. Execute the worker
     result = await booking_worker.ainvoke(safe_state)
 
     # FIX 1: Changed 'message' to 'messages' (LangGraph uses plural)
@@ -69,70 +80,63 @@ class RouterSchema(BaseModel):
 
 async def supervisor_node(state: AgentState) -> dict:
     """The Orchestrator. Reads the conversation and decides the next move."""
-    print("\n[SUPERVISOR] 🤔 Thinking about the next move...")
+    print("\n[SUPERVISOR] 🤔 Thinking about the next move (GLM Rumination ON)...")
 
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    structured_llm = llm.with_structured_output(RouterSchema)
-    
-    # FIX 3: Added the prompt and the actual LLM execution
-    # system_prompt = SystemMessage(content=(
-    #     "You are the Lead Facilities Orchestrator. Your job is to manage a team of specialists to solve complex user requests. "
-    #     "You do not execute tasks yourself; you delegate them by issuing specific commands to your workers and reviewing their internal reports.\n\n"
-        
-    #     "TEAM DIRECTORY:\n"
-    #     "- BOOKING_NODE: Executes room reservations, checks availability, and manages physical equipment.\n"
-    #     "- ESG_NODE: Evaluates requests for sustainability compliance, carbon limits, and energy policies.\n"
-    #     "- HVAC_NODE: Adjusts physical room environments, temperature, and smart lighting.\n\n"
-        
-    #     "ORCHESTRATION RULES (CRITICAL):\n"
-    #     "1. STEP-BY-STEP DECOMPOSITION: If a user asks for multiple things (e.g., 'Book a room and set AC to 16C'), handle one step at a time. "
-    #     "Route to the most logical first node (e.g., check ESG compliance before booking the room).\n"
-    #     "2. ISSUE EXPLICIT COMMANDS: Never just route to a node. You must provide a clear 'command' telling the worker exactly what you need them to do or evaluate.\n"
-    #     "3. CONFLICT RESOLUTION: If you route to a worker and their internal report shows a failure or policy violation (e.g., ESG rejects the 16C request), "
-    #     "do NOT proceed with the rest of the user's plan. Route to SYNTHESIZER to inform the user of the blockage.\n"
-    #     "4. ITERATIVE COLLABORATION: You can route back and forth. If HVAC proposes an energy output, you can route to ESG to approve it, and then back to HVAC if it needs adjusting.\n"
-    #     "5. THE FINISH LINE: Only route to SYNTHESIZER when all parts of the user's request have been successfully completed by the workers, or if a hard blockage requires user input."
-    # ))
+    # 1. SETUP THE LLM WITH THE ESCAPE HATCH
+    glm_llm = ChatOpenAI(
+        model="ilmu-glm-5.1",
+        api_key=os.getenv("Z_AI_API_KEY"),
+        base_url=os.getenv("Z_AI_BASE_URL"), 
+        temperature=0,
+        extra_body={  # Bypasses the strict OpenAI SDK validation
+            "thinking": {"type": "enabled"} # Triggers the server-side reasoning
+        }
+    )
 
-    system_prompt = SystemMessage(content=(
-        "You are the Lead Facilities Orchestrator. Your job is to manage a scheduling specialist to solve user requests. "
-        "You do not execute tasks yourself; you delegate them by issuing specific commands to your worker and reviewing their internal reports.\n\n"
-        
-        "TEAM DIRECTORY:\n"
-        "- BOOKING_NODE: Executes room reservations, checks room availability, and manages physical equipment inventory.\n\n"
-        
-        "ORCHESTRATION RULES (CRITICAL):\n"
-        "1. LOGICAL DECOMPOSITION: If a user's request is complex, handle it logically. For example, command the worker to check room availability first before issuing a second command to actually create the booking.\n"
-        "2. ISSUE EXPLICIT COMMANDS: Never just route to a node. You must provide a clear 'command' telling the worker exactly what you need them to do or evaluate based on the user's prompt.\n"
-        "3. CONFLICT RESOLUTION: If you route to the worker and their internal report shows a failure (e.g., the room is already booked, or the equipment is out of stock), "
-        "do NOT proceed. Route to SYNTHESIZER to inform the user of the blockage and ask how they want to proceed.\n"
-        "4. THE FINISH LINE: Only route to SYNTHESIZER when the user's request has been successfully completed by the worker, or if a blockage requires user input (e.g., asking them to pick from a list of available rooms)."
-    ))
+    token_counter_llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv("Z_AI_API_KEY"),)
+
+    # 2. SETUP THE ROBUST OUTPUT PARSER
+    from langchain_core.output_parsers import PydanticOutputParser
+    parser = PydanticOutputParser(pydantic_object=RouterSchema)
     
+    # 3. THE PROMPT (Notice the parser instructions injected at the very bottom!)
+    system_prompt = SystemMessage(
+        content=build_supervisor_prompt(parser.get_format_instructions())
+    )
+    
+    # 4. TRIM MESSAGES TO PROTECT CONTEXT WINDOW
     trimmed_messages = trim_messages(
         state["messages"],
         max_tokens=4000, 
         strategy="last",
-        token_counter=llm,
-        include_system=False # We inject the system prompt manually below
+        token_counter=token_counter_llm,
+        include_system=False 
     )
     
     messages_to_send = [system_prompt] + trimmed_messages
-    decision = await structured_llm.ainvoke(messages_to_send)
+    
+    # 5. EXECUTE THE LLM CALL (Using standard text format to avoid tool_call crashes)
+    raw_result = await glm_llm.ainvoke(messages_to_send)
+    
+    # 6. PARSE THE RESPONSE (Strips away Markdown backticks safely)
+    try:
+        decision = parser.invoke(raw_result)
+    except Exception as e:
+        print(f"[SUPERVISOR ERROR] Failed to parse GLM response. Forcing fallback to SYNTHESIZER. Error: {e}")
+        # Safe fallback so your whole app doesn't crash if the model hallucinates
+        return {"next": "SYNTHESIZER"}
     
     print(f"[SUPERVISOR] 🎯 Routing to {decision.next} with command: {decision.command}")
     
-    # If the decision is to synthesize, we don't need to issue a command to the workers
+    # 7. ROUTING LOGIC
     if decision.next == "SYNTHESIZER":
         return {"next": decision.next}
     
-    # Create the Boss's instruction so the worker knows exactly what to do
     boss_instruction = SystemMessage(
         content=f"[SUPERVISOR COMMAND]: {decision.command}",
         name="Supervisor"
     )
     
-    # Return both the routing direction AND the command to be added to the state
     return {
         "next": decision.next,
         "messages": [boss_instruction]
@@ -143,9 +147,19 @@ async def supervisor_node(state: AgentState) -> dict:
 # ==========================================
 async def synthesizer_node(state: AgentState) -> dict:
     """Reads all internal worker reports and writes a polite reply to the user."""
-    print("\n[SYNTHESIZER] ✍️ Drafting final response to user...")
+    print("\n[SYNTHESIZER] ✍️ Drafting final response to user (GLM ON)...")
     
-    llm = ChatOpenAI(model="gpt-4o") # Use a smarter model for writing
+    glm_llm = ChatOpenAI(
+        model="ilmu-glm-5.1",
+        api_key=os.getenv("Z_AI_API_KEY"),
+        base_url=os.getenv("Z_AI_BASE_URL"), 
+        temperature=0,
+        extra_body={
+            "thinking": {"type": "enabled"}
+        }
+    )
+
+    token_counter_llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv("Z_AI_API_KEY"),)
     
     system_prompt = SystemMessage(content=(
         "You are the polite customer-facing voice of a Facilities Management system. "
@@ -158,12 +172,12 @@ async def synthesizer_node(state: AgentState) -> dict:
         state["messages"],
         max_tokens=4000, 
         strategy="last",
-        token_counter=llm,
+        token_counter=token_counter_llm,
         include_system=False
     )
 
-    messages_to_send = [system_prompt] + list(state["messages"])
-    response = await llm.ainvoke(messages_to_send)
+    messages_to_send = [system_prompt] + trimmed_messages
+    response = await glm_llm.ainvoke(messages_to_send)
     
     return {"messages": [response]}
 

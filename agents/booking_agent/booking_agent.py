@@ -14,10 +14,10 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # 1. Initialize Gemini
 llm = ChatOpenAI(
-    model="gpt-4o-mini", 
-    temperature=0
-    # base_url=os.getenv("OPENAI_API_BASE"),
-    # api_key=os.getenv("OPENAI_API_KEY")
+    model="ilmu-glm-5.1",
+    temperature=0,
+    api_key=os.getenv("Z_AI_API_KEY"),
+    base_url=os.getenv("Z_AI_BASE_URL"), 
     
 )
 

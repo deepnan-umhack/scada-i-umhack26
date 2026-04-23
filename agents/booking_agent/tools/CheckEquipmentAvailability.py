@@ -58,8 +58,10 @@ async def check_equipment_availability_tool(
                     ei.id, 
                     ei.name, 
                     ei.total_quantity,
-                    COALESCE(SUM(be.quantity), 0) AS currently_booked,
-                    (ei.total_quantity - COALESCE(SUM(be.quantity), 0)) AS available_quantity
+                    COALESCE(SUM(CASE WHEN b.id IS NOT NULL THEN be.quantity ELSE 0 END), 0) AS currently_booked,
+                    (
+                        ei.total_quantity - COALESCE(SUM(CASE WHEN b.id IS NOT NULL THEN be.quantity ELSE 0 END), 0)
+                    ) AS available_quantity
                 FROM equipment_inventory ei
                 LEFT JOIN booking_equipment be ON ei.id = be.equipment_id
                 LEFT JOIN bookings b ON be.booking_id = b.id 
@@ -79,8 +81,10 @@ async def check_equipment_availability_tool(
                     ei.id, 
                     ei.name, 
                     ei.total_quantity,
-                    COALESCE(SUM(be.quantity), 0) AS currently_booked,
-                    (ei.total_quantity - COALESCE(SUM(be.quantity), 0)) AS available_quantity
+                    COALESCE(SUM(CASE WHEN b.id IS NOT NULL THEN be.quantity ELSE 0 END), 0) AS currently_booked,
+                    (
+                        ei.total_quantity - COALESCE(SUM(CASE WHEN b.id IS NOT NULL THEN be.quantity ELSE 0 END), 0)
+                    ) AS available_quantity
                 FROM equipment_inventory ei
                 LEFT JOIN booking_equipment be ON ei.id = be.equipment_id
                 LEFT JOIN bookings b ON be.booking_id = b.id 

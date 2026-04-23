@@ -29,6 +29,10 @@ class CreateBookingInput(BaseModel):
         default=None, 
         description="Optional list of equipment required for the meeting."
     )
+    source_prompt: str = Field(
+        ..., 
+        description="Original user prompt that initiated this booking."
+    )
 
     @field_validator("start_time_utc", mode="before")
     @classmethod
@@ -50,7 +54,8 @@ async def create_booking_tool(
     start_time_utc: Union[datetime, str],
     duration_minutes: int,
     purpose: str,
-    equipment_requests: Optional[List[dict]] = None # LangChain passes nested models as dicts
+    source_prompt: str,
+    equipment_requests: Optional[List[dict]] = None, # LangChain passes nested models as dicts
 ) -> str:
     """
     Attempts to insert a new booking and associated equipment. 
@@ -70,14 +75,26 @@ async def create_booking_tool(
     try:
         # Start a database transaction (all-or-nothing)
         async with conn.transaction():
+            # Ensure prompt-audit column exists without requiring a separate migration step.
+            await conn.execute(
+                "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source_prompt TEXT;"
+            )
             
             # 1. Insert the Room Booking
             booking_query = """
-                INSERT INTO bookings (room_id, user_id, start_time, end_time, purpose, status)
-                VALUES ($1, $2, $3, $4, $5, 'CONFIRMED')
+                INSERT INTO bookings (room_id, user_id, start_time, end_time, purpose, status, source_prompt)
+                VALUES ($1, $2, $3, $4, $5, 'CONFIRMED', $6)
                 RETURNING id;
             """
-            new_booking_id = await conn.fetchval(booking_query, room_id, user_id, start_time, end_time, purpose)
+            new_booking_id = await conn.fetchval(
+                booking_query,
+                room_id,
+                user_id,
+                start_time,
+                end_time,
+                purpose,
+                source_prompt,
+            )
             
             # 2. Insert the Equipment (if requested)
             if equipment_requests:
@@ -87,9 +104,13 @@ async def create_booking_tool(
                 """
                 # Loop through and insert each requested item
                 for item in equipment_requests:
-                    # Safely extract values whether LangChain gives us a Dict or a Pydantic Object
-                    equip_id = item.equipment_id if hasattr(item, 'equipment_id') else item['equipment_id']
-                    qty = item.quantity if hasattr(item, 'quantity') else item['quantity']
+                    # Safely extract values whether LangChain gives us a dict or an object.
+                    if isinstance(item, dict):
+                        equip_id = item["equipment_id"]
+                        qty = item["quantity"]
+                    else:
+                        equip_id = item.equipment_id
+                        qty = item.quantity
                     
                     await conn.execute(
                         equip_query, 
@@ -134,6 +155,7 @@ if __name__ == "__main__":
             "start_time_utc": tomorrow_2pm.isoformat(),
             "duration_minutes": 90,
             "purpose": "Q4 Strategy Pitch",
+            "source_prompt": "Book a room for my Q4 Strategy Pitch tomorrow at 2 PM for 90 minutes.",
             "equipment_requests": [
                 {
                     "equipment_id": "e1111111-1111-1111-1111-111111111111", # Projector
