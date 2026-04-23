@@ -1,17 +1,15 @@
-from langchain_core.tools import tool
 import json
+from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
-@tool
-def calculate_carbon_offset_cost_tool(carbon_emissions_kg: float) -> str:
+class CarbonOffsetInput(BaseModel):
+    carbon_emissions_kg: float = Field(..., description="Total estimated carbon emissions in kilograms.")
+
+@tool(args_schema=CarbonOffsetInput)
+async def calculate_carbon_offset_cost_tool(carbon_emissions_kg: float) -> str:
     """
     Calculates the financial cost to offset the generated carbon footprint and provides ecological equivalents.
     Use this AFTER fetching the total carbon emissions.
-    
-    Args:
-        carbon_emissions_kg (float): The total estimated carbon emissions in kilograms.
-        
-    Returns:
-        str: JSON string containing the offset cost in USD/MYR and tree equivalent.
     """
     try:
         # Assuming current market rate of ~$20 USD per Metric Ton (1000 kg)

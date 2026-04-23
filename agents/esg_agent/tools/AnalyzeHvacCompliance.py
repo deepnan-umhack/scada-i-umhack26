@@ -1,48 +1,62 @@
-from langchain_core.tools import tool
 import json
 import os
-from supabase import create_client, Client
+import asyncpg
+from datetime import datetime
+from dotenv import load_dotenv, find_dotenv
+from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
-url: str = os.environ.get("SUPABASE_URL") or os.environ.get("VITE_SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("VITE_SUPABASE_ANON_KEY")
-supabase: Client = create_client(url, key)
+load_dotenv(find_dotenv())
+DATABASE_URL = os.getenv("POSTGRES_URL")
 
-@tool
-def analyze_hvac_compliance_tool(start_date: str, end_date: str) -> str:
+class AnalyzeHvacInput(BaseModel):
+    start_date: str = Field(..., description="Start of the period (e.g. '2026-01-01T00:00:00Z').")
+    end_date: str = Field(..., description="End of the period (e.g. '2026-03-31T23:59:59Z').")
+
+@tool(args_schema=AnalyzeHvacInput)
+async def analyze_hvac_compliance_tool(start_date: str, end_date: str) -> str:
     """
     Audits the SCADA sensor history to check for energy wastage, such as AC running in empty rooms.
     Provides the Governance compliance score for the ESG report.
-    
-    Args:
-        start_date (str): Start of the period.
-        end_date (str): End of the period.
-        
-    Returns:
-        str: JSON string detailing policy violations and a compliance score.
     """
     try:
-        # Fetching records where power is being consumed
-        response = supabase.table('room_sensor_history') \
-            .select('is_occupied, power_kw, ac_temp_setting') \
-            .gte('timestamp', start_date) \
-            .lte('timestamp', end_date) \
-            .gt('power_kw', 0) \
-            .execute()
-            
-        data = response.data
-        if not data:
+        start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+    except ValueError:
+        return json.dumps({"error": "Invalid date format. Please use ISO 8601 (e.g., YYYY-MM-DDTHH:MM:SSZ)."})
+
+    if not DATABASE_URL:
+        return json.dumps({"error": "DATABASE_URL is not configured."})
+
+    try:
+        conn = await asyncpg.connect(DATABASE_URL)
+        try:
+            query = """
+                SELECT is_occupied, power_kw, ac_temp_setting 
+                FROM room_sensor_history 
+                WHERE timestamp >= $1 AND timestamp <= $2 AND power_kw > 0
+            """
+            rows = await conn.fetch(query, start_dt, end_dt)
+        finally:
+            await conn.close()
+
+        if not rows:
             return json.dumps({"error": "No active HVAC data to audit for this period."})
 
-        total_active_records = len(data)
+        total_active_records = len(rows)
         
         # Policy Violation 1: AC running while room is completely unoccupied
-        wasted_energy_incidents = sum(1 for row in data if row.get('is_occupied') == 0)
+        wasted_energy_incidents = sum(1 for row in rows if not row.get('is_occupied'))
         
         # Policy Violation 2: AC set below eco-standard (e.g., below 22C)
-        try:
-            extreme_cooling_incidents = sum(1 for row in data if float(row.get('ac_temp_setting', 24)) < 22.0)
-        except (ValueError, TypeError):
-            extreme_cooling_incidents = 0
+        extreme_cooling_incidents = 0
+        for row in rows:
+            try:
+                temp_setting = row.get('ac_temp_setting')
+                if temp_setting is not None and float(temp_setting) < 22.0:
+                    extreme_cooling_incidents += 1
+            except (ValueError, TypeError):
+                pass
             
         # Calculate a rough compliance score out of 100
         violation_rate = (wasted_energy_incidents + extreme_cooling_incidents) / total_active_records

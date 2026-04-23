@@ -1,5 +1,7 @@
 import asyncio
+import os
 from langchain_core.messages import HumanMessage
+from dotenv import load_dotenv, find_dotenv
 from esg_agent.esg_agent import run_esg_worker
 
 async def run_test(test_name: str, prompt: str):
@@ -22,6 +24,14 @@ async def run_test(test_name: str, prompt: str):
         print(f"\n❌ ERROR OCCURRED: {e}")
 
 async def main():
+    load_dotenv(find_dotenv()) 
+    
+    # 🚨 DEBUG PRINT 🚨
+    print(f"\n{'='*60}")
+    print(f"🕵️ DEBUG: POSTGRES_URL loaded as:")
+    print(f"👉 '{os.getenv('POSTGRES_URL')}'")
+    print(f"{'='*60}\n")
+
     print("🚀 Starting ESG Agent Evaluation...")
     print("Testing tool execution and strict [REPORT]: output formatting.\n")
     
