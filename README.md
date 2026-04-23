@@ -1,7 +1,6 @@
 # scada-i-umhack26
 
 Short description: repository initialized for the scada-i-umhack26 project.
-test
 
 ## Quickstart
 
