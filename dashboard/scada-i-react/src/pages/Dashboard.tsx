@@ -773,7 +773,7 @@ export default function Dashboard() {
           </div>
           
           <div className="flex-1 relative min-h-[300px] lg:min-h-0 mt-0">
-            <div className="static lg:absolute lg:inset-0 h-full flex flex-row bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="absolute inset-0 h-full flex flex-row bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               {(() => {
               const mockBookings = [
                 {
@@ -811,6 +811,7 @@ export default function Dashboard() {
               const statusTypes = ["IN PROGRESS", "UPCOMING", "COMPLETED", "CANCELLED"];
               const activeLabel = expandedBookingStatus || statusTypes[0];
               const activeBookings = mockBookings.filter(b => b.status.label === activeLabel);
+              const safeIndex = currentBookingIndex >= activeBookings.length ? 0 : currentBookingIndex;
 
               return (
                 <>
@@ -831,7 +832,10 @@ export default function Dashboard() {
                       return (
                         <button 
                           key={idx}
-                          onClick={() => setExpandedBookingStatus(statusLabel)}
+                          onClick={() => {
+                            setExpandedBookingStatus(statusLabel);
+                            setCurrentBookingIndex(0);
+                          }}
                           className={`w-full p-3 lg:p-4 flex flex-col items-start text-left border-b border-gray-200/60 transition-colors ${isActive ? 'bg-white shadow-[inset_3px_0_0_0_#6366f1]' : 'hover:bg-gray-100'}`}
                         >
                           <div className="w-full flex items-center justify-between">
@@ -850,53 +854,79 @@ export default function Dashboard() {
                   </div>
 
                   {/* Right Content Area */}
-                  <div className="flex-1 flex flex-col min-w-0 p-3 lg:p-4 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300 relative">
+                  <div className="flex-1 flex flex-col min-w-0 p-3 lg:p-4 overflow-y-hidden relative">
                     {activeBookings.length > 0 ? (
-                      <div className="flex flex-col gap-6 h-max">
-                        {activeBookings.map((activeBooking, idx) => (
-                          <div key={idx} className="flex flex-col gap-3 pb-6 border-b border-gray-100 last:border-0 last:pb-0">
-                            <div className="flex flex-col min-w-0 pb-2 border-b border-gray-100/50">
-                              <h4 className="font-semibold text-gray-900 text-sm truncate" title={activeBooking.event.name}>{activeBooking.event.name}</h4>
-                              <p className="text-[10px] lg:text-xs text-gray-500 mt-0.5 line-clamp-1" title={activeBooking.event.department}>{activeBooking.event.department}</p>
-                            </div>
-                            
-                            <div className="flex flex-col gap-2.5 flex-1">
-                              <div className="flex items-start gap-2.5 text-xs text-gray-600">
-                                <Calendar className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date & Time</span>
-                                  <span className="font-medium text-gray-800 line-clamp-1 truncate" title={`${activeBooking.event.date}, ${activeBooking.event.time}`}>{activeBooking.event.date}, {activeBooking.event.time}</span>
-                                </div>
-                              </div>
-                              <div className="flex items-start gap-2.5 text-xs text-gray-600">
-                                <MapPin className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Venue</span>
-                                  <span className="font-medium text-gray-800 line-clamp-1 truncate" title={activeBooking.event.room}>{activeBooking.event.room}</span>
-                                </div>
-                              </div>
-                              <div className="flex items-start gap-2.5 text-xs text-gray-600">
-                                <Package className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Equipment</span>
-                                  <span className="font-medium text-gray-800 line-clamp-2" title={activeBooking.event.equipment}>{activeBooking.event.equipment}</span>
-                                </div>
-                              </div>
-                            </div>
+                      <div className="flex flex-col h-full">
+                        {(() => {
+                           const activeBooking = activeBookings[safeIndex];
+                           return (
+                             <div className="flex flex-col gap-3 flex-1 overflow-y-auto pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
+                               <div className="flex flex-col min-w-0 pb-2 border-b border-gray-100/50">
+                                 <h4 className="font-semibold text-gray-900 text-sm truncate" title={activeBooking.event.name}>{activeBooking.event.name}</h4>
+                                 <p className="text-[10px] lg:text-xs text-gray-500 mt-0.5 line-clamp-1" title={activeBooking.event.department}>{activeBooking.event.department}</p>
+                               </div>
+                               
+                               <div className="flex flex-col gap-2.5 flex-1 shrink-0">
+                                 <div className="flex items-start gap-2.5 text-xs text-gray-600">
+                                   <Calendar className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                                   <div className="flex flex-col min-w-0">
+                                     <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date & Time</span>
+                                     <span className="font-medium text-gray-800 line-clamp-1 truncate" title={`${activeBooking.event.date}, ${activeBooking.event.time}`}>{activeBooking.event.date}, {activeBooking.event.time}</span>
+                                   </div>
+                                 </div>
+                                 <div className="flex items-start gap-2.5 text-xs text-gray-600">
+                                   <MapPin className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                                   <div className="flex flex-col min-w-0">
+                                     <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Venue</span>
+                                     <span className="font-medium text-gray-800 line-clamp-1 truncate" title={activeBooking.event.room}>{activeBooking.event.room}</span>
+                                   </div>
+                                 </div>
+                                 <div className="flex items-start gap-2.5 text-xs text-gray-600">
+                                   <Package className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                                   <div className="flex flex-col min-w-0">
+                                     <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Equipment</span>
+                                     <span className="font-medium text-gray-800 line-clamp-2" title={activeBooking.event.equipment}>{activeBooking.event.equipment}</span>
+                                   </div>
+                                 </div>
+                               </div>
 
-                            <div className="mt-1 bg-indigo-50/40 rounded-lg p-3 border border-indigo-100/50 flex flex-col gap-1.5 shrink-0">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
-                                  <User className="w-3 h-3" /> Prompt
-                                </span>
-                                <span className="text-[9px] font-medium text-indigo-400">{activeBooking.user_prompt.timestamp}</span>
-                              </div>
-                              <p className="text-[11px] lg:text-xs text-gray-700 italic leading-relaxed">
-                                "{activeBooking.user_prompt.message}"
-                              </p>
-                            </div>
+                               <div className="mt-1 bg-indigo-50/40 rounded-lg p-3 border border-indigo-100/50 flex flex-col gap-1.5 shrink-0">
+                                 <div className="flex items-center justify-between">
+                                   <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
+                                     <User className="w-3 h-3" /> Prompt
+                                   </span>
+                                   <span className="text-[9px] font-medium text-indigo-400">{activeBooking.user_prompt.timestamp}</span>
+                                 </div>
+                                 <p className="text-[11px] lg:text-xs text-gray-700 italic leading-relaxed">
+                                   "{activeBooking.user_prompt.message}"
+                                 </p>
+                               </div>
+                             </div>
+                           )
+                        })()}
+
+                        {/* Navigation Controls */}
+                        {activeBookings.length > 1 && (
+                          <div className="flex items-center justify-between pt-3 mt-2 border-t border-gray-100 shrink-0">
+                            <button
+                              onClick={() => setCurrentBookingIndex(prev => Math.max(0, prev - 1))}
+                              disabled={safeIndex === 0}
+                              className={`p-1.5 rounded-md transition-colors ${safeIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100 hover:text-indigo-600'}`}
+                            >
+                              <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <span className="text-xs text-gray-500 font-medium">
+                              {safeIndex + 1} <span className="text-gray-300 mx-1">/</span> {activeBookings.length}
+                            </span>
+                            <button
+                              onClick={() => setCurrentBookingIndex(prev => Math.min(activeBookings.length - 1, prev + 1))}
+                              disabled={safeIndex === activeBookings.length - 1}
+                              className={`p-1.5 rounded-md transition-colors ${safeIndex === activeBookings.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100 hover:text-indigo-600'}`}
+                            >
+                              <ChevronRight className="w-5 h-5" />
+                            </button>
                           </div>
-                        ))}
+                        )}
                       </div>
                     ) : (
                       <div className="flex-1 flex items-center justify-center text-gray-400 text-sm h-full absolute inset-0">No bookings in this status</div>
