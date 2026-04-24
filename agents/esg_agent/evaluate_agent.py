@@ -50,14 +50,14 @@ async def main():
     # Test Case 3: Governance/Compliance Audit
     await run_test(
         "3. HVAC Compliance Audit",
-        "[SUPERVISOR COMMAND] Run an HVAC compliance check between 2026-02-01T00:00:00Z and 2026-02-28T23:59:59Z."
+        "[SUPERVISOR COMMAND] Run an HVAC compliance check between 2024-02-01T00:00:00Z and 2024-02-28T23:59:59Z."
     )
 
     # Test Case 4: Full Report Generation (Requires chaining tools)
     # The agent should realize it needs to fetch energy data FIRST, then generate the report.
     await run_test(
         "4. Full ESG Report Generation",
-        "[SUPERVISOR COMMAND] Generate an ESG report for 2026-01-01T00:00:00Z to 2026-01-31T23:59:59Z requested by Admin123. Ensure you fetch the energy data first."
+        "[SUPERVISOR COMMAND] Generate an ESG report for 2024-01-01T00:00:00Z to 2024-01-31T23:59:59Z requested by Admin123. Ensure you fetch the energy data first."
     )
 
 if __name__ == "__main__":

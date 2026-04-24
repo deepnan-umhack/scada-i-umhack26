@@ -24,13 +24,14 @@ async def generate_esg_report_tool(start_date: str, end_date: str, total_energy_
     Creates and saves the final official ESG report record into the database, using the metrics gathered.
     """
     try:
+        # Parse into datetimes in case the esg_reports table uses native timestamps
         start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
         end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
     except ValueError:
-        return json.dumps({"error": "Invalid date format. Please use ISO 8601."})
+        return "ERROR: Invalid date format. Please use ISO 8601. DO NOT RETRY."
 
     if not DATABASE_URL:
-        return json.dumps({"error": "DATABASE_URL is not configured."})
+        return "CRITICAL ERROR: DATABASE_URL is not configured. DO NOT RETRY."
 
     try:
         report_id = f"ESG-{datetime.now(timezone.utc).strftime('%Y%m')}-{str(uuid.uuid4())[:6].upper()}"
@@ -45,6 +46,7 @@ async def generate_esg_report_tool(start_date: str, end_date: str, total_energy_
                     hvac_efficiency_rating, sustainability_status
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             """
+            # Passing datetime objects
             await conn.execute(
                 query,
                 report_id,
@@ -76,4 +78,4 @@ async def generate_esg_report_tool(start_date: str, end_date: str, total_energy_
         })
         
     except Exception as e:
-        return f"ERROR - Failed to generate ESG report: {str(e)}"
+        return f"CRITICAL ERROR - Failed to generate ESG report: {str(e)}. DO NOT RETRY."

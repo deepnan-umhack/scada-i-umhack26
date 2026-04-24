@@ -23,33 +23,33 @@ async def analyze_hvac_compliance_tool(start_date: str, end_date: str) -> str:
         start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
         end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
     except ValueError:
-        return json.dumps({"error": "Invalid date format. Please use ISO 8601 (e.g., YYYY-MM-DDTHH:MM:SSZ)."})
+        return "ERROR: Invalid date format. Please use ISO 8601 (e.g., YYYY-MM-DDTHH:MM:SSZ). DO NOT RETRY."
 
     if not DATABASE_URL:
-        return json.dumps({"error": "DATABASE_URL is not configured."})
+        return "CRITICAL ERROR: DATABASE_URL is not configured. DO NOT RETRY."
 
     try:
         conn = await asyncpg.connect(DATABASE_URL)
         try:
+            # Using TO_TIMESTAMP forces Postgres to parse your DD/MM/YYYY text correctly
             query = """
                 SELECT is_occupied, power_kw, ac_temp_setting 
                 FROM room_sensor_history 
-                WHERE timestamp >= $1 AND timestamp <= $2 AND power_kw > 0
+                WHERE TO_TIMESTAMP(timestamp, 'DD/MM/YYYY HH24:MI') >= $1 
+                  AND TO_TIMESTAMP(timestamp, 'DD/MM/YYYY HH24:MI') <= $2 
+                  AND power_kw > 0
             """
             rows = await conn.fetch(query, start_dt, end_dt)
         finally:
             await conn.close()
 
         if not rows:
-            return json.dumps({"error": "No active HVAC data to audit for this period."})
+            return f"ERROR: No active HVAC data to audit for the period {start_date} to {end_date}. Report this finding directly to the user. DO NOT RETRY."
 
         total_active_records = len(rows)
-        
-        # Policy Violation 1: AC running while room is completely unoccupied
         wasted_energy_incidents = sum(1 for row in rows if not row.get('is_occupied'))
-        
-        # Policy Violation 2: AC set below eco-standard (e.g., below 22C)
         extreme_cooling_incidents = 0
+        
         for row in rows:
             try:
                 temp_setting = row.get('ac_temp_setting')
@@ -58,7 +58,6 @@ async def analyze_hvac_compliance_tool(start_date: str, end_date: str) -> str:
             except (ValueError, TypeError):
                 pass
             
-        # Calculate a rough compliance score out of 100
         violation_rate = (wasted_energy_incidents + extreme_cooling_incidents) / total_active_records
         compliance_score = max(0, min(100, round(100 - (violation_rate * 100))))
 
@@ -73,4 +72,4 @@ async def analyze_hvac_compliance_tool(start_date: str, end_date: str) -> str:
         })
         
     except Exception as e:
-        return f"ERROR - Failed to analyze HVAC compliance: {str(e)}"
+        return f"CRITICAL ERROR - Failed to analyze HVAC compliance: {str(e)}. DO NOT RETRY."

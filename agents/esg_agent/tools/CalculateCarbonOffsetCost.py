@@ -12,14 +12,8 @@ async def calculate_carbon_offset_cost_tool(carbon_emissions_kg: float) -> str:
     Use this AFTER fetching the total carbon emissions.
     """
     try:
-        # Assuming current market rate of ~$20 USD per Metric Ton (1000 kg)
-        # 1 kg = $0.02 USD
         cost_usd = round(carbon_emissions_kg * 0.02, 2)
-        
-        # Rough conversion rate to MYR (e.g., 1 USD = 4.7 MYR)
         cost_myr = round(cost_usd * 4.7, 2)
-        
-        # A mature tree absorbs about 22kg of CO2 per year
         trees_needed = round(carbon_emissions_kg / 22, 1)
         
         return json.dumps({
@@ -33,4 +27,4 @@ async def calculate_carbon_offset_cost_tool(carbon_emissions_kg: float) -> str:
         })
         
     except Exception as e:
-        return f"ERROR - Failed to calculate carbon offset: {str(e)}"
+        return f"CRITICAL ERROR - Failed to calculate carbon offset: {str(e)}. DO NOT RETRY."

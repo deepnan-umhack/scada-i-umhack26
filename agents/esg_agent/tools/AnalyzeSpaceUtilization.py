@@ -19,13 +19,14 @@ async def analyze_space_utilization_tool(start_date: str, end_date: str) -> str:
     Analyzes room booking data to determine space utilization efficiency (Social/Operational ESG metric).
     """
     try:
+        # Parse into datetimes for the timestamptz column
         start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
         end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
     except ValueError:
-        return json.dumps({"error": "Invalid date format. Please use ISO 8601."})
+        return "ERROR: Invalid date format. Please use ISO 8601. DO NOT RETRY."
 
     if not DATABASE_URL:
-        return json.dumps({"error": "DATABASE_URL is not configured."})
+        return "CRITICAL ERROR: DATABASE_URL is not configured. DO NOT RETRY."
 
     try:
         conn = await asyncpg.connect(DATABASE_URL)
@@ -35,6 +36,7 @@ async def analyze_space_utilization_tool(start_date: str, end_date: str) -> str:
                 FROM bookings 
                 WHERE start_time >= $1 AND start_time <= $2 AND status != 'CANCELLED'
             """
+            # Passing native datetime objects since this table uses TIMESTAMPTZ
             rows = await conn.fetch(query, start_dt, end_dt)
         finally:
             await conn.close()
@@ -44,6 +46,7 @@ async def analyze_space_utilization_tool(start_date: str, end_date: str) -> str:
 
         total_hours = 0
         for b in rows:
+            # Since asyncpg handles timestamptz natively, these are already datetime objects
             duration = (b['end_time'] - b['start_time']).total_seconds() / 3600
             total_hours += duration
             
@@ -57,4 +60,4 @@ async def analyze_space_utilization_tool(start_date: str, end_date: str) -> str:
         })
         
     except Exception as e:
-        return f"ERROR - Failed to analyze space utilization: {str(e)}"
+        return f"CRITICAL ERROR - Failed to analyze space utilization: {str(e)}. DO NOT RETRY."

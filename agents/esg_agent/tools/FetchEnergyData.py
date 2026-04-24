@@ -23,33 +23,30 @@ async def fetch_energy_data_tool(start_date: str, end_date: str) -> str:
         start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
         end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
     except ValueError:
-        return json.dumps({"error": "Invalid date format. Please use ISO 8601."})
+        return "ERROR: Invalid date format. Please use ISO 8601. DO NOT RETRY."
 
     if not DATABASE_URL:
-        return json.dumps({"error": "DATABASE_URL is not configured."})
+        return "CRITICAL ERROR: DATABASE_URL is not configured. DO NOT RETRY."
 
     try:
         conn = await asyncpg.connect(DATABASE_URL)
         try:
+            # Applying the same parsing fix here
             query = """
                 SELECT power_kw, room_temp, outside_temp 
                 FROM room_sensor_history 
-                WHERE timestamp >= $1 AND timestamp <= $2
+                WHERE TO_TIMESTAMP(timestamp, 'DD/MM/YYYY HH24:MI') >= $1 
+                  AND TO_TIMESTAMP(timestamp, 'DD/MM/YYYY HH24:MI') <= $2
             """
             rows = await conn.fetch(query, start_dt, end_dt)
         finally:
             await conn.close()
         
         if not rows:
-            return json.dumps({"error": f"No sensor data found between {start_date} and {end_date}."})
+            return f"ERROR: No sensor data found between {start_date} and {end_date}. Cannot generate report. DO NOT RETRY."
 
-        # Calculate metrics from the raw rows
         total_kwh = sum((row.get('power_kw') or 0) for row in rows)
-        
-        # Calculate rough carbon footprint (approx 0.39 kg CO2 per kWh)
         carbon_kg = round(total_kwh * 0.39, 2)
-        
-        # Mocking an efficiency score based on available data limits
         hvac_efficiency_score = 92 
         
         return json.dumps({
@@ -64,4 +61,4 @@ async def fetch_energy_data_tool(start_date: str, end_date: str) -> str:
         })
         
     except Exception as e:
-        return f"ERROR - Failed to fetch energy data: {str(e)}"
+        return f"CRITICAL ERROR - Failed to fetch energy data: {str(e)}. DO NOT RETRY."
