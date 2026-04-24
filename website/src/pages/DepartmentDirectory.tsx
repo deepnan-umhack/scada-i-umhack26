@@ -57,7 +57,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
     "Quality and Risk Management Centre (QRIM)", "Research Management Centre (RMC)",
     "Student Recruitment and Admission Division", "Strategy Management Office (SMO)",
     "UTM Academic Leadership (UTMLead)", "UTM International", "UTM Sports Excellence",
-    "Multimedia UTM", "Library Administration"
+    "Multimedia UTM", "Library Administration", "UTM Health Centre (PKU)", "Pusat Islam UTM"
   ];
 
   const filteredDepts = departments.filter(dept => 
