@@ -274,14 +274,14 @@ const MainChat: React.FC<MainChatProps> = ({
                             space: <span className="font-bold">{msg.tags.space}</span>
                           </div>
                         )}
-                        {msg.tags.depts.map((dept, i) => (
-                          <div key={i} className="bg-purple-50 px-3 py-1 rounded-full border border-purple-100 text-[11px] font-medium text-purple-600">
-                            dept: <span className="font-bold">{dept}</span>
-                          </div>
-                        ))}
                         {msg.tags.equipment.map((item, i) => (
                           <div key={i} className="bg-blue-50 px-3 py-1 rounded-full border border-blue-100 text-[11px] font-medium text-blue-600">
                             equipment: <span className="font-bold">{item}</span>
+                          </div>
+                        ))}
+                        {msg.tags.depts.map((dept, i) => (
+                          <div key={i} className="bg-purple-50 px-3 py-1 rounded-full border border-purple-100 text-[11px] font-medium text-purple-600">
+                            dept: <span className="font-bold">{dept}</span>
                           </div>
                         ))}
                       </div>
@@ -326,19 +326,6 @@ const MainChat: React.FC<MainChatProps> = ({
                     </button>
                   )}
 
-                  {displayedDepts.length > 0 ? (
-                    displayedDepts.map((dept, index) => (
-                      <div key={`dept-${index}`} className="flex items-center gap-2 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 text-xs font-medium text-purple-700 animate-in zoom-in-95 duration-200">
-                        <span>dept: <span className="font-semibold">{dept}</span></span>
-                        <button onClick={() => handleRemoveDept(index)} className="hover:text-purple-900 font-bold ml-0.5 active:scale-75">✕</button>
-                      </div>
-                    ))
-                  ) : (
-                    <button onClick={onOpenDepartmentDirectory} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:border-slate-400 hover:text-slate-500 transition-all active:scale-95">
-                      + Add Dept
-                    </button>
-                  )}
-
                   {displayedEquipment.length > 0 ? (
                     displayedEquipment.map((item, index) => (
                       <div key={`equip-${index}`} className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 text-xs font-medium text-blue-700 animate-in zoom-in-95 duration-200">
@@ -349,6 +336,19 @@ const MainChat: React.FC<MainChatProps> = ({
                   ) : (
                     <button onClick={onOpenEquipmentCatalog} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:border-slate-400 hover:text-slate-500 transition-all active:scale-95">
                       + Add Equipment
+                    </button>
+                  )}
+
+                  {displayedDepts.length > 0 ? (
+                    displayedDepts.map((dept, index) => (
+                      <div key={`dept-${index}`} className="flex items-center gap-2 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 text-xs font-medium text-purple-700 animate-in zoom-in-95 duration-200">
+                        <span>dept: <span className="font-semibold">{dept}</span></span>
+                        <button onClick={() => handleRemoveDept(index)} className="hover:text-purple-900 font-bold ml-0.5 active:scale-75">✕</button>
+                      </div>
+                    ))
+                  ) : (
+                    <button onClick={onOpenDepartmentDirectory} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:border-slate-400 hover:text-slate-500 transition-all active:scale-95">
+                      + Add Dept
                     </button>
                   )}
                 </div>
