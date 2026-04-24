@@ -5,8 +5,9 @@ import {
   LineChart, Line, ReferenceLine, Legend
 } from "recharts";
 import { 
-  Cloud, Zap, Users, Leaf, Lightbulb, Settings2, User, Bot, Thermometer, Droplets, X, Wind, Minus, Plus, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, Package 
+  Cloud, Zap, Users, Leaf, Lightbulb, Settings2, User, Bot, Thermometer, Droplets, X, Wind, Minus, Plus, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, Package, FileText 
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // --- Types ---
 type LogEntry = {
@@ -444,7 +445,14 @@ export default function Dashboard() {
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 lg:mb-6 gap-4 px-4 pt-4 lg:px-0 lg:pt-0">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">SCADA-i Dashboard</h1>
+          <nav className="flex items-center space-x-2 text-sm font-medium text-gray-500 mb-2">
+            {/* <span className="text-gray-900">SCADA-i</span>
+            <ChevronRight size={14} className="text-gray-400" /> */}
+            <span className="text-indigo-600">Dashboard</span>
+            <span className="text-gray-400 px-1">•</span>
+            <Link to="/dashboard/esg-reports" className="hover:text-gray-900 transition-colors">ESG Reports</Link>
+          </nav>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">SCADA-i Overview</h1>
           <p className="text-sm text-gray-500 mt-1">Monitor real-time environment & energy metrics</p>
         </div>
         
@@ -821,13 +829,13 @@ export default function Dashboard() {
                       const isActive = activeLabel === statusLabel;
                       const count = mockBookings.filter(b => b.status.label === statusLabel).length;
                       
-                      const statusStyles: Record<string, string> = {
-                        'IN PROGRESS': 'text-blue-700 bg-blue-100/50',
-                        'UPCOMING': 'text-amber-700 bg-amber-100/50',
-                        'COMPLETED': 'text-emerald-700 bg-emerald-100/50',
-                        'CANCELLED': 'text-red-700 bg-red-100/50',
+                      const activeContainerStyles: Record<string, string> = {
+                        'IN PROGRESS': 'bg-blue-100 border-blue-300 text-blue-900',
+                        'UPCOMING': 'bg-amber-100 border-amber-300 text-amber-900',
+                        'COMPLETED': 'bg-emerald-100 border-emerald-300 text-emerald-900',
+                        'CANCELLED': 'bg-red-100 border-red-300 text-red-900',
                       };
-                      const activeStyle = statusStyles[statusLabel] || 'text-gray-700 bg-gray-200';
+                      const activeStyle = activeContainerStyles[statusLabel] || 'bg-gray-100 border-gray-300 text-gray-900';
                       
                       return (
                         <button 
@@ -836,14 +844,14 @@ export default function Dashboard() {
                             setExpandedBookingStatus(statusLabel);
                             setCurrentBookingIndex(0);
                           }}
-                          className={`w-full p-3 lg:p-4 flex flex-col items-start text-left border-b border-gray-200/60 transition-colors ${isActive ? 'bg-white shadow-[inset_3px_0_0_0_#6366f1]' : 'hover:bg-gray-100'}`}
+                          className={`w-full p-3 lg:p-4 flex flex-col items-start text-left border-b transition-colors ${isActive ? activeStyle : 'border-gray-200/60 hover:bg-gray-100 text-gray-500'}`}
                         >
                           <div className="w-full flex items-center justify-between">
-                            <span className={`text-[9px] lg:text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide whitespace-nowrap ${isActive ? activeStyle : 'bg-transparent text-gray-500'}`}>
+                            <span className="text-[10px] lg:text-[11px] font-bold uppercase tracking-wide whitespace-nowrap">
                               {statusLabel}
                             </span>
                             {count > 0 && (
-                              <span className={`font-semibold text-xs ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
+                              <span className={`font-semibold text-xs ${isActive ? 'opacity-80' : 'text-gray-400'}`}>
                                 {count}
                               </span>
                             )}

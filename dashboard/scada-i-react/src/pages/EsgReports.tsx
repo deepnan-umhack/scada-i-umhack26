@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { 
-  FileText, Calendar, Download, Plus, X, CheckCircle2, ChevronRight, Search 
+  FileText, Calendar, Download, Plus, X, CheckCircle2, ChevronRight, ChevronDown, Search, LayoutDashboard 
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // --- Mock Data ---
 const pastReports = [
@@ -67,6 +68,13 @@ export default function EsgReports() {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
+          <nav className="flex items-center space-x-2 text-sm font-medium text-gray-500 mb-2">
+            {/* <span className="text-gray-900">PAGES</span> */}
+            {/* <ChevronRight size={14} className="text-gray-400" /> */}
+            <Link to="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
+            <span className="text-gray-400 px-1">•</span>
+            <span className="text-indigo-600">ESG Reports</span>
+          </nav>
           <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">SCADA-i Generative Reports</h1>
           <p className="text-sm text-gray-500 mt-1">Monitor real-time environment & energy metrics</p>
         </div>
