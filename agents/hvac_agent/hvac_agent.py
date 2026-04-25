@@ -1,20 +1,27 @@
 import uuid
+import os
 
-from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv, find_dotenv
+
+# Load the .env from the parent "agents" directory
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
+from langchain_deepseek import ChatDeepSeek  # NEW: DeepSeek import
 from langgraph.prebuilt import create_react_agent
 
 from agents.hvac_agent.hvac_toolkit import HVAC_TOOLS
 from agents.hvac_agent.hvac_prompts import HVAC_AGENT_PROMPT
-from agents.hvac_agent.config import ILMU_API_KEY, ILMU_MODEL, ILMU_BASE_URL
 
-if not ILMU_API_KEY:
-    raise ValueError("Missing ILMU_API_KEY in environment")
-
-llm = ChatOpenAI(
-    api_key=ILMU_API_KEY,
-    base_url=ILMU_BASE_URL,
-    model=ILMU_MODEL,
+# ==========================================
+# MODEL INITIALIZATION
+# ==========================================
+# Tool calling (create_react_agent) strictly requires deepseek-chat
+llm = ChatDeepSeek(
+    model=os.getenv("MODEL", "deepseek-chat"), 
     temperature=0,
+    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    # Note: base_url is usually not needed for native DeepSeek SDK, 
+    # but you can add base_url=os.getenv("DEEPSEEK_API_BASE") if you use a proxy.
 )
 
 hvac_worker = create_react_agent(

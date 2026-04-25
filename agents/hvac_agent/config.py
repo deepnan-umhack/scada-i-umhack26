@@ -32,9 +32,9 @@ def _get_first_env(*names: str, default=None, required: bool = False):
 
 
 # LLM settings
-ILMU_API_KEY = _get_first_env("Z_AI_API_KEY", "ILMU_API_KEY", required=True)
-ILMU_MODEL = _get_first_env("Z_AI_MODEL", "ILMU_MODEL", default="ilmu-glm-5.1")
-ILMU_BASE_URL = _get_first_env("Z_AI_BASE_URL", "ILMU_BASE_URL", default="https://api.ilmu.ai/v1")
+# ILMU_API_KEY = _get_first_env("Z_AI_API_KEY", "ILMU_API_KEY", required=True)
+# ILMU_MODEL = _get_first_env("Z_AI_MODEL", "ILMU_MODEL", default="ilmu-glm-5.1")
+# ILMU_BASE_URL = _get_first_env("Z_AI_BASE_URL", "ILMU_BASE_URL", default="https://api.ilmu.ai/v1")
 
 
 # Postgres

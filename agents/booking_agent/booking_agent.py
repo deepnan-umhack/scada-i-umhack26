@@ -1,6 +1,5 @@
 # booking_agent.py
-# from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from langchain_deepseek import ChatDeepSeek  # NEW: DeepSeek import
 from langgraph.prebuilt import create_react_agent
 
 from booking_agent.toolkit import BOOKING_TOOLS
@@ -12,21 +11,23 @@ from dotenv import load_dotenv, find_dotenv
 # Load the .env from the parent "agents" directory
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-# 1. Initialize Gemini
-llm = ChatOpenAI(
-    model="ilmu-glm-5.1",
+# 1. Initialize DeepSeek wrapper
+# Tool calling (create_react_agent) strictly requires deepseek-chat
+llm = ChatDeepSeek(
+    model=os.getenv("MODEL", "deepseek-chat"),
     temperature=0,
-    api_key=os.getenv("Z_AI_API_KEY"),
-    base_url=os.getenv("Z_AI_BASE_URL"), 
-    
+    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    # Note: base_url is usually not needed for the native DeepSeek SDK, 
+    # but you can add base_url=os.getenv("DEEPSEEK_API_BASE") if using a proxy.
 )
 
-# 2. Create the stateless worker using the NEW 'prompt' argument
+# 2. Create the stateless worker using the 'prompt' argument
 booking_worker = create_react_agent(
     model=llm,
     tools=BOOKING_TOOLS,
-    prompt=BOOKING_AGENT_PROMPT  # <--- This replaces state_modifier!
+    prompt=BOOKING_AGENT_PROMPT  
 )
+
 # Optional: A wrapper function if your orchestrator needs a specific interface
 async def run_booking_worker(messages: list):
     """

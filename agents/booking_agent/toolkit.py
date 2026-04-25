@@ -6,6 +6,7 @@ from booking_agent.tools.GetUserBookings import get_user_bookings_tool
 from booking_agent.tools.GetRoomDirectory import get_room_directory_tool
 from booking_agent.tools.CheckEquipmentAvailability import check_equipment_availability_tool
 from booking_agent.tools.TimeTools import get_current_datetime_malaysia_tool, convert_user_time_to_utc_tool
+from booking_agent.tools.GetDepartmentDirectory import get_university_departments_tool
 
 BOOKING_TOOLS = [
     check_room_availability_tool,
@@ -16,5 +17,6 @@ BOOKING_TOOLS = [
     get_room_directory_tool,
     check_equipment_availability_tool,
     get_current_datetime_malaysia_tool,
-    convert_user_time_to_utc_tool
+    convert_user_time_to_utc_tool,
+    get_university_departments_tool
 ]

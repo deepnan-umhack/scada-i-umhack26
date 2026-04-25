@@ -3,6 +3,7 @@ import asyncpg
 import os
 import json
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 from typing import Union, List, Optional
 from dotenv import load_dotenv, find_dotenv
 from pydantic import BaseModel, Field, field_validator
@@ -24,11 +25,19 @@ class CreateBookingInput(BaseModel):
     start_time_utc: Union[datetime, str] = Field(..., description="Start time in strict ISO 8601 UTC.")
     duration_minutes: int = Field(..., description="Duration in minutes.")
     purpose: str = Field(..., description="Purpose of the meeting.")
-    # NEW: Optional equipment list!
+    
     equipment_requests: Optional[List[EquipmentRequest]] = Field(
         default=None, 
         description="Optional list of equipment required for the meeting."
     )
+    
+    # --- EDITED: Now accepts a LIST of strings for multiple departments ---
+    target_department_ids: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of department UUIDs involved in or responsible for this event."
+    )
+    # ----------------------------------------------------------------------
+    
     source_prompt: str = Field(
         ..., 
         description="Original user prompt that initiated this booking."
@@ -55,10 +64,13 @@ async def create_booking_tool(
     duration_minutes: int,
     purpose: str,
     source_prompt: str,
-    equipment_requests: Optional[List[dict]] = None, # LangChain passes nested models as dicts
+    equipment_requests: Optional[List[dict]] = None,
+    # --- EDITED: Parameter is now a list ---
+    target_department_ids: Optional[List[str]] = None,
+    # ---------------------------------------
 ) -> str:
     """
-    Attempts to insert a new booking and associated equipment. 
+    Attempts to insert a new booking, associated equipment, and involved departments. 
     Relies on PostgreSQL transactions to ensure everything books together.
     """
     if isinstance(start_time_utc, str):
@@ -71,19 +83,53 @@ async def create_booking_tool(
     if not DATABASE_URL:
         return json.dumps({"status": "error", "message": "DATABASE_URL is not configured."})
 
+    # Ensure target_department_ids is at least an empty list for Postgres array
+    if target_department_ids is None:
+        target_department_ids = []
+
+    normalized_department_ids: Optional[List[str]] = None
+    if target_department_ids:
+        normalized_department_ids = []
+        for department_id in target_department_ids:
+            try:
+                normalized_department_ids.append(str(UUID(department_id)))
+            except (TypeError, ValueError):
+                return json.dumps({
+                    "status": "error",
+                    "message": f"Invalid department UUID: {department_id}"
+                })
+
     conn = await asyncpg.connect(DATABASE_URL)
     try:
-        # Start a database transaction (all-or-nothing)
         async with conn.transaction():
-            # Ensure prompt-audit column exists without requiring a separate migration step.
             await conn.execute(
                 "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS source_prompt TEXT;"
             )
+            await conn.execute(
+                "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS target_department_ids uuid[];"
+            )
+
+            if normalized_department_ids:
+                existing_departments = await conn.fetch(
+                    "SELECT id FROM departments WHERE id = ANY($1::uuid[])",
+                    normalized_department_ids,
+                )
+                existing_department_ids = {str(row["id"]) for row in existing_departments}
+                missing_department_ids = [
+                    department_id
+                    for department_id in normalized_department_ids
+                    if department_id not in existing_department_ids
+                ]
+                if missing_department_ids:
+                    return json.dumps({
+                        "status": "error",
+                        "message": f"Unknown department UUID(s): {', '.join(missing_department_ids)}"
+                    })
             
-            # 1. Insert the Room Booking
+            # --- EDITED: INSERT uses target_department_ids and casts to uuid[] ---
             booking_query = """
-                INSERT INTO bookings (room_id, user_id, start_time, end_time, purpose, status, source_prompt)
-                VALUES ($1, $2, $3, $4, $5, 'CONFIRMED', $6)
+                INSERT INTO bookings (room_id, user_id, start_time, end_time, purpose, status, source_prompt, target_department_ids)
+                VALUES ($1, $2, $3, $4, $5, 'CONFIRMED', $6, $7::uuid[])
                 RETURNING id;
             """
             new_booking_id = await conn.fetchval(
@@ -94,17 +140,16 @@ async def create_booking_tool(
                 end_time,
                 purpose,
                 source_prompt,
+                normalized_department_ids
             )
+            # ---------------------------------------------------------------------
             
-            # 2. Insert the Equipment (if requested)
             if equipment_requests:
                 equip_query = """
                     INSERT INTO booking_equipment (booking_id, equipment_id, quantity, fulfillment_status)
                     VALUES ($1, $2, $3, 'PENDING');
                 """
-                # Loop through and insert each requested item
                 for item in equipment_requests:
-                    # Safely extract values whether LangChain gives us a dict or an object.
                     if isinstance(item, dict):
                         equip_id = item["equipment_id"]
                         qty = item["quantity"]
@@ -112,13 +157,16 @@ async def create_booking_tool(
                         equip_id = item.equipment_id
                         qty = item.quantity
                     
-                    await conn.execute(
-                        equip_query, 
-                        new_booking_id, 
-                        equip_id, 
-                        qty
-                    )
+                    await conn.execute(equip_query, new_booking_id, equip_id, qty)
             
+        msg = "Room booking confirmed."
+        if equipment_requests and normalized_department_ids:
+            msg = f"Booking, equipment, and {len(normalized_department_ids)} involved department(s) successfully logged."
+        elif equipment_requests:
+            msg = "Booking and equipment confirmed."
+        elif normalized_department_ids:
+            msg = f"Booking and {len(normalized_department_ids)} involved department(s) successfully logged."
+
         return json.dumps({
             "status": "success",
             "booking_id": str(new_booking_id),
@@ -128,7 +176,8 @@ async def create_booking_tool(
             "end_time_utc": end_time.astimezone(timezone.utc).isoformat(),
             "duration_minutes": duration_minutes,
             "purpose": purpose,
-            "message": "Booking and equipment confirmed." if equipment_requests else "Room booking confirmed."
+            "target_department_ids": normalized_department_ids or [],
+            "message": msg
         })
 
     except asyncpg.exceptions.ExclusionViolationError:
@@ -148,13 +197,12 @@ async def create_booking_tool(
 # ------------------------------------------------------------------
 if __name__ == "__main__":
     async def run_tests():
-        print("--- Testing Create Booking Tool with Equipment ---")
+        print("--- Testing Create Booking Tool with Multiple Departments ---")
         
-        # Set a booking for tomorrow at 2:00 PM UTC
         now = datetime.now(timezone.utc)
         tomorrow_2pm = (now + timedelta(days=1)).replace(hour=14, minute=0, second=0, microsecond=0)
         
-        # IMPORTANT: Replace room_id and user_id with real ones from your DB!
+        # IMPORTANT: Replace these UUIDs with real ones from your DB!
         test_payload = {
             "user_id": "scadai_user_001", 
             "room_id": "b9969334-2b9b-4da4-853c-e89ef19be7e4",
@@ -164,33 +212,24 @@ if __name__ == "__main__":
             "source_prompt": "Book a room for my Q4 Strategy Pitch tomorrow at 2 PM for 90 minutes.",
             "equipment_requests": [
                 {
-                    "equipment_id": "e1111111-1111-1111-1111-111111111111", # Projector
+                    "equipment_id": "e1111111-1111-1111-1111-111111111111", 
                     "quantity": 1
-                },
-                {
-                    "equipment_id": "e2222222-2222-2222-2222-222222222222", # Wireless Mic
-                    "quantity": 2
                 }
+            ],
+            # --- EDITED: Now an array of strings ---
+            "target_department_ids": [
+                "d1111111-1111-1111-1111-111111111111",
+                "d2222222-2222-2222-2222-222222222222"
             ]
+            # ---------------------------------------
         }
 
-        print("\n[Test 1] Attempting booking with equipment requests...")
+        print("\n[Test 1] Attempting booking with equipment and multiple departments...")
         result1 = await create_booking_tool.ainvoke(test_payload)
         
         try:
             print(json.dumps(json.loads(result1), indent=2))
         except:
             print("Response 1:", result1)
-            
-        print("\n[Test 2] Attempting duplicate booking to test rollback constraints...")
-        # Since the room is now taken, the database transaction should fail 
-        # and it should NOT insert the equipment requests.
-        result2 = await create_booking_tool.ainvoke(test_payload)
-        
-        try:
-            print(json.dumps(json.loads(result2), indent=2))
-        except:
-            print("Response 2:", result2)
 
-    # Run the async test loop
     asyncio.run(run_tests())

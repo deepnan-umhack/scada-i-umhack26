@@ -77,6 +77,7 @@ async def get_user_bookings_tool(
                 b.end_time, 
                 b.purpose, 
                 b.status,
+                b.target_department_ids,
                 r.id as room_id, 
                 r.name as room_name
             FROM bookings b
@@ -129,7 +130,8 @@ async def get_user_bookings_tool(
                 "room_name": r["room_name"],
                 "start_time_utc": r["start_time"].isoformat(),
                 "end_time_utc": r["end_time"].isoformat(),
-                "purpose": r["purpose"] or "No purpose provided"
+                "purpose": r["purpose"] or "No purpose provided",
+                "target_department_ids": [str(department_id) for department_id in (r["target_department_ids"] or [])]
             })
 
         return json.dumps({
