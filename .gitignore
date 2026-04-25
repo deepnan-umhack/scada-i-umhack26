@@ -69,18 +69,10 @@ pytest_cache/
 
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# OS files
-
-.DS_Store
-Thumbs.db
-
+coverage/
+*.egg-info/
 .env.local
 .env.*
-website/.env.local
-/.env.*
 
 # Local Netlify folder
 .netlify
@@ -89,3 +81,8 @@ website/.env.local
 deno.lock
 
 node_modules/
+.venv/
+.env
+dist/
+build/
+*.log

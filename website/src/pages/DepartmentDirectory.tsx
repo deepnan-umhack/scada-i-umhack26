@@ -1,20 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import logo from '../assets/LogoS.svg';
 import iconMenu from '../assets/Menu.svg';
 import iconSettings from '../assets/Settings.svg';
 import iconInbox from '../assets/Inbox.svg';
 import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
+import iconInfo from '../assets/Info.svg';
 
 interface DirectoryProps {
   onBack: () => void;
+  onDepartmentSelected: (deptName: string) => void; 
   onOpenBookingStatus: () => void;
   onOpenProfileSettings: () => void;
+  selectedDepts: string[]; 
 }
 
-const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingStatus, onOpenProfileSettings }) => {
+const DepartmentDirectory: React.FC<DirectoryProps> = ({ 
+  onBack, 
+  onDepartmentSelected, 
+  onOpenBookingStatus, 
+  onOpenProfileSettings,
+  selectedDepts 
+}) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showToast, setShowToast] = useState(false);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
@@ -22,6 +32,21 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
     setIsSidebarOpen(false);
     onBack();
   };
+
+  const handleSelect = (name: string) => {
+    if (!selectedDepts.includes(name)) {
+      onDepartmentSelected(name);
+    } else {
+      setShowToast(true);
+    }
+  };
+
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => setShowToast(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
 
   const departments = [
     "Admission Office", "Alumni Relations Unit", "Board of Directors", "Counseling Centre",
@@ -37,7 +62,8 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
     "Office of Deputy Vice-Chancellor (Development)", "Penerbit UTM Press",
     "Quality and Risk Management Centre (QRIM)", "Research Management Centre (RMC)",
     "Student Recruitment and Admission Division", "Strategy Management Office (SMO)",
-    "UTM Academic Leadership (UTMLead)", "UTM International", "UTM Sports Excellence"
+    "UTM Academic Leadership (UTMLead)", "UTM International", "UTM Sports Excellence",
+    "Multimedia UTM", "Library Administration", "UTM Health Centre (PKU)", "Pusat Islam UTM"
   ];
 
   const filteredDepts = departments.filter(dept => 
@@ -47,6 +73,18 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
   return (
     <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden">
       
+      {/* Mobile Snackbar Tip */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-100 transition-all duration-500 ease-in-out px-6 w-full max-w-xs md:hidden ${
+        showToast ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+      }`}>
+        <div className="bg-slate-800 text-white py-3 px-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700">
+          <img src={iconInfo} className="h-4 w-4 invert opacity-80" alt="info" />
+          <p className="text-[12px] font-medium tracking-wide">
+            {selectedDepts.length > 0 ? "Department already tagged!" : "Tap any card to tag it to your chat"}
+          </p>
+        </div>
+      </div>
+
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/5 z-70 md:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
@@ -63,7 +101,7 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
             <button className="absolute left-4 top-3.5 h-4 w-4 z-10 hover:scale-110 transition-transform active:opacity-50">
               <img src={iconSearch} alt="Search" className="h-full w-full opacity-40 group-focus-within:opacity-80 transition-opacity" />
             </button>
-            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-sm border-none shadow-sm outline-none" />
+            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-base border-none shadow-sm outline-none" />
           </div>
           <div className="space-y-2">
             <button onClick={handleNewChat} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
@@ -115,20 +153,34 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
           </div>
         </header>
 
-        {/* Scrollable Content Area */}
+        {/* Content Area */}
         <div className="flex-1 overflow-y-auto no-scrollbar touch-pan-y px-4 md:px-10">
-          <div className="sticky -top-px z-40 bg-[#F0F4F8] pt-2 pb-6 mb-2 -mx-4 px-4 -mt-1">
-            <div className="flex items-center justify-between w-full mb-5">
+          <div className="sticky -top-px z-40 bg-[#F0F4F8] pt-2 pb-4 -mx-4 px-4 -mt-1">
+            <div className="flex items-center justify-between w-full mb-5 gap-4">
               <div className="flex flex-col">
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Department Directory</h1>
                 <p className="text-sm text-slate-500 font-medium">Contact and Office Information</p>
               </div>
-              <button onClick={onBack} className="p-1.5 bg-white shadow-sm border border-slate-100 hover:bg-slate-50 rounded-full transition-all active:scale-90 group shrink-0">
-                <span className="text-lg text-slate-400 group-hover:text-slate-600 transition-colors block leading-none px-1">✕</span>
-              </button>
+              
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="group relative flex items-center justify-end">
+                    <button 
+                      onClick={() => setShowToast(true)}
+                      className="flex items-center gap-2.5 bg-white border border-slate-200 h-9 px-3 rounded-full shadow-xs transition-all duration-500 ease-out max-w-10.5 md:group-hover:max-w-75 overflow-hidden whitespace-nowrap active:scale-95"
+                    >
+                        <img src={iconInfo} alt="Info" className="h-4 w-4 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity" />
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 hidden md:inline">
+                            Tap card to tag to chat
+                        </span>
+                    </button>
+                </div>
+
+                <button onClick={onBack} className="p-1.5 bg-white shadow-sm border border-slate-100 hover:bg-slate-50 rounded-full transition-all active:scale-90 group shrink-0 h-9 w-9 flex items-center justify-center">
+                  <span className="text-lg text-slate-700 group-hover:text-slate-600 transition-colors block leading-none">✕</span>
+                </button>
+              </div>
             </div>
 
-            {/* Filter Search Area */}
             <div className="relative w-full max-w-sm group">
               <button className="absolute left-4 top-3.5 h-4 w-4 z-10">
                 <img src={iconSearch} alt="Search" className="h-full w-full opacity-30 group-focus-within:opacity-60 transition-opacity" />
@@ -143,38 +195,60 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
             </div>
           </div>
 
-          {/* Directory Cards */}
           <div className="space-y-4 pb-24 mt-2">
-            {filteredDepts.map((dept, index) => (
-              <div 
-                key={index} 
-                className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100/50 hover:shadow-md transition-all group active:scale-[0.99] cursor-pointer"
-              >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-slate-800 text-[17px] md:text-[18px] group-hover:text-blue-600 transition-colors leading-tight">{dept}</h3>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Office Open</span>
+            {filteredDepts.map((dept, index) => {
+              const isChosen = selectedDepts.includes(dept);
+              
+              return (
+                <div 
+                  key={index} 
+                  onClick={() => !isChosen && handleSelect(dept)} 
+                  className={`bg-white rounded-[2.5rem] p-6 shadow-sm border transition-all group active:scale-[0.99] relative overflow-hidden ${
+                    isChosen 
+                    ? 'border-blue-100 opacity-60 cursor-default' 
+                    : 'border-slate-100/50 hover:shadow-md cursor-pointer'
+                  }`}
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div className="flex-1">
+                      {/* Badge is now same line as name */}
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className={`font-bold text-[17px] md:text-[18px] transition-colors leading-tight ${
+                          isChosen ? 'text-slate-400' : 'text-slate-800 group-hover:text-blue-600'
+                        }`}>
+                          {dept}
+                        </h3>
+
+                        {isChosen && (
+                          <div className="bg-blue-50 text-blue-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-blue-100 shrink-0">
+                            Tagged
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-2 mt-2">
+                        <span className={`w-2 h-2 rounded-full ${isChosen ? 'bg-slate-300' : 'bg-emerald-500'}`}></span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Office Open</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-10 gap-y-4 border-t lg:border-t-0 lg:border-l border-slate-100 pt-5 lg:pt-0 lg:pl-10 text-[13px] text-slate-600 font-medium">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Contact</span>
-                      <span>+607-553 3333</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Email</span>
-                      <span className="italic">office@utm.my</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Hours</span>
-                      <span className="whitespace-nowrap">8:00 AM - 5:00 PM</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-10 gap-y-4 border-t lg:border-t-0 lg:border-l border-slate-100 pt-5 lg:pt-0 lg:pl-10 text-[13px] text-slate-600 font-medium">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Contact</span>
+                        <span>+607-553 3333</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Email</span>
+                        <span className="italic">office@utm.my</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Hours</span>
+                        <span className="whitespace-nowrap">8:00 AM - 5:00 PM</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {filteredDepts.length === 0 && (
               <div className="text-center py-24">
@@ -183,7 +257,6 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({ onBack, onOpenBookingSt
               </div>
             )}
           </div>
-          {/* Disclaimer: DeepNaN is AI and can make mistakes. */}
         </div>
       </main>
     </div>

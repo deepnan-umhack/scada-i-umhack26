@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import logo from '../assets/LogoS.svg';
 import iconMenu from '../assets/Menu.svg';
 import iconSettings from '../assets/Settings.svg';
 import iconInbox from '../assets/Inbox.svg';
 import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
+import { supabase } from '../lib/supabaseClient';
 
 interface ProfileProps {
   onBack: () => void;
@@ -14,6 +15,16 @@ interface ProfileProps {
 
 const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
+
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
   const handleNewChat = () => {
@@ -40,7 +51,7 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
             <button className="absolute left-4 top-3.5 h-4 w-4 z-10 hover:scale-110 transition-transform active:opacity-50">
               <img src={iconSearch} alt="Search" className="h-full w-full opacity-40 group-focus-within:opacity-80 transition-opacity" />
             </button>
-            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-sm border-none shadow-sm outline-none" />
+            <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-base border-none shadow-sm outline-none" />
           </div>
           <div className="space-y-2">
             <button onClick={handleNewChat} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
@@ -123,7 +134,7 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
                   </button>
                 </div>
                 <div className="flex-1 text-center md:text-left">
-                  <h2 className="text-4xl font-bold text-slate-900">Dr. Username</h2>
+                  <h2 className="text-4xl font-bold text-slate-900">{user?.user_metadata?.full_name || 'Dr. Username'}</h2>
                   <p className="text-xl text-slate-500 font-medium mt-1">Senior Lecturer • Faculty of Computing</p>
                   <div className="mt-6 flex flex-wrap gap-2 justify-center md:justify-start">
                      {['Artificial Intelligence', 'Machine Learning', 'Logistics AI'].map(tag => (
@@ -145,7 +156,7 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
                   <div className="space-y-6">
                     <div>
                       <label className="text-[13px] font-bold text-slate-400 uppercase block mb-1 tracking-widest">Email Address</label>
-                      <p className="text-base text-slate-800 font-base">username@utm.my</p>
+                      <p className="text-base text-slate-800 font-base">{user?.email || 'username@utm.my'}</p>
                     </div>
                     <div>
                       <label className="text-[13px] font-bold text-slate-400 uppercase block mb-1 tracking-widest">Staff Identification</label>
@@ -181,7 +192,6 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
                       </div>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
