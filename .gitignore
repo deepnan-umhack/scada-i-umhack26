@@ -76,3 +76,16 @@ pytest_cache/
 
 .DS_Store
 Thumbs.db
+
+.env.local
+.env.*
+website/.env.local
+/.env.*
+
+# Local Netlify folder
+.netlify
+
+# Netlify / Deno generated files
+deno.lock
+
+node_modules/

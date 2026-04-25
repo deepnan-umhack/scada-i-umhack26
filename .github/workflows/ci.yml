@@ -1,0 +1,67 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  frontend-checks:
+    name: Frontend Checks (React/Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'website/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./website
+        run: npm install
+
+      - name: TypeScript build check
+        working-directory: ./website
+        run: npm run build
+
+      - name: ESLint code quality check
+        working-directory: ./website
+        run: npm run lint
+
+  unit-tests-and-guardrail:
+    name: Unit Tests & Guardrail Safety
+    runs-on: ubuntu-latest
+    env:
+      MQTT_BROKER: broker.hivemq.com
+      MQTT_PORT: 8884
+      MQTT_TRANSPORT: websockets
+      MQTT_WS_PATH: /mqtt
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      ILMU_API_KEY: ${{ secrets.ILMU_API_KEY }}
+      ILMU_MODEL: ${{ secrets.ILMU_MODEL }}
+      ILMU_BASE_URL: ${{ secrets.ILMU_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        working-directory: ./agents
+        run: |
+          pip install uv
+          uv export --no-hashes | pip install -r /dev/stdin
+
+      - name: Run HVAC Agent Tests
+        working-directory: ./hvac_agent
+        run: pytest test_hvac_agent_pytest.py -v
