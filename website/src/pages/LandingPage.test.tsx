@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect, vi, beforeAll } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import LandingPage from './LandingPage'
 
 // Mock framer-motion — animations don't run in jsdom
