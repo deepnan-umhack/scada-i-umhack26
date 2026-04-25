@@ -22,7 +22,7 @@ The system orchestrates different components to manage smart buildings autonomou
 * **ESG Agent (`agents/esg_agent/`)**: Analyzes space utilization, calculates carbon offset costs, retrieves building policies via PDF ingestion, and analyzes HVAC compliance.
 
 ### Dashboard & Mobile App
-* **Web Dashboard (`dashboard/scada-i-react/`)**: A React + Vite frontend deployed with Netlify/Vercel. It features real-time Supabase integration, authentication, and dedicated pages for viewing ESG reports, booking statuses, and space browsing.
+* **Web Dashboard (`dashboard/scada-i-react/`)**: Features real-time analytics based on IoT data streams, dedicated pages for viewing ESG reports, booking statuses, and live occupancy feed.
 * **Mobile Application (`website/`)**: The mobile-facing application for user interactions on the go.
 
 ### Infrastructure & Simulation
@@ -124,10 +124,10 @@ The system communicates with simulated devices using the following MQTT topics:
 
 | Purpose            | Topic                       |
 | ------------------ | --------------------------- |
-| HVAC Commands      | `scadai/hvac/control`       |
+| HVAC Commands      | `scadai/control`       |
 | Optimizer Request  | `scadai/optimizer/request`  |
 | Optimizer Response | `scadai/optimizer/response` |
-| Sensor Replay      | `scadai/room_state/replay`  |
+| Sensor Replay      | `scadai/sensor`  |
 
 ---
 
