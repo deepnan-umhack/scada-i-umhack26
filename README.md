@@ -11,6 +11,15 @@ An AI-powered, multi-agent control system for smart buildings. SCADA-i combines 
 
 ---
 
+## Table of Contents
+- [System Overview](#system-overview)
+- [Repository Structure](#repository-structure)
+- [How to Run](#how-to-run)
+- [MQTT Topics](#mqtt-topics)
+- [Testing and Demos](#testing-and-demos)
+
+---
+
 ## System Overview
 
 The system orchestrates different components to manage smart buildings autonomously and through natural language interaction. 
