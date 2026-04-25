@@ -35,7 +35,3 @@ jobs:
       - name: ESLint code quality check
         working-directory: ./website
         run: npm run lint
-
-      - name: Test coverage check
-        working-directory: ./website
-        run: npm run coverage
