@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, type JSX } from 'react';
 import logo from '../assets/LogoS.svg';
 import iconMenu from '../assets/Menu.svg';
 import iconSettings from '../assets/Settings.svg';
@@ -102,8 +102,8 @@ const MainChat: React.FC<MainChatProps> = ({
       depts: [...displayedDepts]
     };
 
-    setMessages(prev => [...prev, { 
-      role: 'user', 
+    setMessages(prev => [...prev, {
+      role: 'user',
       text: userText,
       tags: tagSnapshot
     }]);
@@ -127,7 +127,7 @@ const MainChat: React.FC<MainChatProps> = ({
       messageForAI = `${messageForAI}\n\n(System Note: User UI tags: ${contextTags.join(' | ')})`;
     }
 
-try {
+    try {
       const payloadToSend = {
         message: messageForAI,
         thread_id: threadId,
@@ -149,32 +149,32 @@ try {
       if (data.reply) {
         setMessages(prev => [...prev, { role: 'agent', text: data.reply }]);
       } else {
-        setMessages(prev => [...prev, { 
-          role: 'agent', 
-          text: "The server connected but didn't provide a reply. Please try again." 
+        setMessages(prev => [...prev, {
+          role: 'agent',
+          text: "The server connected but didn't provide a reply. Please try again."
         }]);
       }
     } catch (error) {
-      setMessages(prev => [...prev, { 
-        role: 'agent', 
-        text: "Connection failed. Please check your internet or try again later." 
+      console.error("Chat API failed:", error);
+      setMessages(prev => [...prev, {
+        role: 'agent',
+        text: "Connection failed. Please check your internet or try again later."
       }]);
     } finally {
       setIsLoading(false);
     }
-    
 
     // ==========================================
     // MANUAL TEST CODE (Simulating AI Reply)
     // ==========================================
     /*
     setTimeout(() => {
-      setMessages(prev => [...prev, { 
-        role: 'agent', 
-        text: "I have checked the availability for your requested date. Unfortunately, the main hall is currently undergoing maintenance. However, I can offer you Bilik Ilmuan 1 or the Seminar Room as alternatives. \n\nBoth spaces are fully equipped with high-speed Wi-Fi, premium sound systems, and enough seating for up to 50 participants. Please let me know if you would like me to lock in these dates for you, or if you need to add more equipment like microphones or extra flip charts to your list. Our team is ready to assist you in making your event a success!" 
+      setMessages(prev => [...prev, {
+        role: 'agent',
+        text: "I have checked the availability for your requested date. Unfortunately, the main hall is currently undergoing maintenance. However, I can offer you Bilik Ilmuan 1 or the Seminar Room as alternatives. \n\nBoth spaces are fully equipped with high-speed Wi-Fi, premium sound systems, and enough seating for up to 50 participants. Please let me know if you would like me to lock in these dates for you, or if you need to add more equipment like microphones or extra flip charts to your list. Our team is ready to assist you in making your event a success!"
       }]);
       setIsLoading(false);
-    }, 1500); 
+    }, 1500);
     */
     // ==========================================
   };
@@ -195,21 +195,69 @@ try {
     setIsSidebarOpen(false);
   };
 
-  const handleClearSpace = () => onSetDisplayedSpace(null);
-  const handleRemoveEquipment = (indexToRemove: number) => {
-    const updatedList = displayedEquipment.filter((_, index) => index !== indexToRemove);
-    onSetDisplayedEquipment(updatedList);
-  };
-  const handleRemoveDept = (indexToRemove: number) => {
-    const updatedList = displayedDepts.filter((_, index) => index !== indexToRemove);
-    onSetDisplayedDepts(updatedList);
-  };
-
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
+
+  // Extracted tag rendering with mobile/desktop layout
+  const renderInputTags = (): JSX.Element => {
+    const allTags: JSX.Element[] = [];
+    if (displayedSpace) {
+      allTags.push(
+        <div key="space" className="flex items-center justify-between gap-2 bg-green-50 px-3 py-1.5 rounded-full border border-green-200 text-xs font-medium text-green-700 w-auto h-7 shrink-0 animate-in zoom-in-95 duration-200">
+          <span className="truncate">space: <span className="font-bold">{displayedSpace}</span></span>
+          <button onClick={() => onSetDisplayedSpace(null)} className="hover:text-green-900 font-bold ml-1">✕</button>
+        </div>
+      );
+    }
+    displayedEquipment.forEach((item, index) => {
+      allTags.push(
+        <div key={`equip-${index}`} className="flex items-center justify-between gap-2 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200 text-xs font-medium text-blue-700 w-auto h-7 shrink-0 animate-in zoom-in-95 duration-200">
+          <span className="truncate">equip: <span className="font-bold">{item}</span></span>
+          <button onClick={() => onSetDisplayedEquipment(displayedEquipment.filter((_, i) => i !== index))} className="hover:text-blue-900 font-bold ml-1">✕</button>
+        </div>
+      );
+    });
+    displayedDepts.forEach((dept, index) => {
+      allTags.push(
+        <div key={`dept-${index}`} className="flex items-center justify-between gap-2 bg-purple-50 px-3 py-1.5 rounded-full border border-purple-200 text-xs font-medium text-purple-700 w-auto h-7 shrink-0 animate-in zoom-in-95 duration-200">
+          <span className="truncate">dept: <span className="font-bold">{dept}</span></span>
+          <button onClick={() => onSetDisplayedDepts(displayedDepts.filter((_, i) => i !== index))} className="hover:text-purple-900 font-bold ml-1">✕</button>
+        </div>
+      );
+    });
+
+    const ghostTags: JSX.Element[] = [];
+    if (!displayedSpace) ghostTags.push(<button key="g-s" onClick={onOpenBrowseSpaces} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0">+ Add Space</button>);
+    if (displayedEquipment.length === 0) ghostTags.push(<button key="g-e" onClick={onOpenEquipmentCatalog} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0">+ Add Equipment</button>);
+    if (displayedDepts.length === 0) ghostTags.push(<button key="g-d" onClick={onOpenDepartmentDirectory} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0">+ Add Dept</button>);
+
+    const allMobile = [...allTags, ...ghostTags];
+    const mRow1 = allMobile.filter((_, idx) => idx === 0 || idx === 1 || (idx > 3 && idx % 2 === 0));
+    const mRow2 = allMobile.filter((_, idx) => idx === 2 || idx === 3 || (idx > 3 && idx % 2 !== 0));
+    const dCount = Math.max(3, Math.ceil(allTags.length / 2));
+
+    return (
+      <>
+        {/* Mobile View */}
+        <div className="flex md:hidden flex-col w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-start transition-all">
+          <div className="flex flex-row gap-2 shrink-0 min-w-max">{mRow1}</div>
+          {mRow2.length > 0 && <div className="flex flex-row gap-2 shrink-0 min-w-max">{mRow2}</div>}
+        </div>
+        {/* Desktop View */}
+        <div className="hidden md:flex flex-row w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-start transition-all">
+          {allTags.length > 0 && (
+            <div className="flex flex-col gap-2 shrink-0">
+              <div className="flex flex-row gap-2 shrink-0">{allTags.slice(0, dCount)}</div>
+              {allTags.length > dCount && <div className="flex flex-row gap-2 shrink-0">{allTags.slice(dCount)}</div>}
+            </div>
+          )}
+          {ghostTags.length > 0 && <div className="flex flex-row items-center gap-2 shrink-0 h-7">{ghostTags}</div>}
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1A1A1A] overflow-hidden relative">
-      
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/5 z-70 md:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
@@ -253,7 +301,6 @@ try {
       </aside>
 
       <main className="flex-1 flex flex-col relative min-w-0 h-full">
-
         {/* Header */}
         <header className="sticky top-0 z-50 bg-[#F0F4F8] shrink-0">
           <div className="flex items-center justify-between px-4 md:px-10 py-3">
@@ -266,7 +313,6 @@ try {
               >
                 <img src={iconMenu} alt="Menu" className="h-5 w-auto" />
               </button>
-              
               <button onClick={handleNewChat} className="hover:opacity-70 transition">
                 <img src={logo} alt="DeepNaN" className="h-6 w-auto" />
               </button>
@@ -278,7 +324,6 @@ try {
         </header>
 
         <div className="flex-1 flex flex-col px-5 md:px-10 overflow-hidden relative">
-          
           <div className="flex-1 overflow-y-auto no-scrollbar pt-4 flex flex-col">
             {messages.length === 0 ? (
               <div className="mt-4 md:mt-9 mb-auto w-full flex flex-col items-start md:items-center">
@@ -302,7 +347,6 @@ try {
                     }`}>
                       {msg.text || (msg.role === 'user' && "Check these requirements:")}
                     </div>
-                    
                     {msg.role === 'user' && msg.tags && (
                       <div className="flex flex-wrap justify-end gap-2 mt-2 max-w-[85%]">
                         {msg.tags.space && (
@@ -349,46 +393,7 @@ try {
 
             <div className="bg-white rounded-[28px] md:rounded-4xl px-6 py-2.5 md:py-3.5 border border-white focus-within:border-slate-200 transition-all shadow-lg flex items-center relative overflow-hidden">
               <div className="flex flex-col w-full py-2">
-                
-                <div className="flex flex-wrap gap-2 items-center mb-1 max-h-20 overflow-y-auto custom-scrollbar pr-1">
-                  {displayedSpace ? (
-                    <div className="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full border border-green-200 text-xs font-medium text-green-700 animate-in zoom-in-95 duration-200">
-                      <span>space: <span className="font-semibold">{displayedSpace}</span></span>
-                      <button onClick={handleClearSpace} className="hover:text-green-900 font-bold ml-0.5">✕</button>
-                    </div>
-                  ) : (
-                    <button onClick={onOpenBrowseSpaces} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:border-slate-400 hover:text-slate-500 transition-all active:scale-95">
-                      + Add Space
-                    </button>
-                  )}
-
-                  {displayedEquipment.length > 0 ? (
-                    displayedEquipment.map((item, index) => (
-                      <div key={`equip-${index}`} className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 text-xs font-medium text-blue-700 animate-in zoom-in-95 duration-200">
-                        <span>equipment: <span className="font-semibold">{item}</span></span>
-                        <button onClick={() => handleRemoveEquipment(index)} className="hover:text-blue-900 font-bold ml-0.5 active:scale-75">✕</button>
-                      </div>
-                    ))
-                  ) : (
-                    <button onClick={onOpenEquipmentCatalog} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:border-slate-400 hover:text-slate-500 transition-all active:scale-95">
-                      + Add Equipment
-                    </button>
-                  )}
-
-                  {displayedDepts.length > 0 ? (
-                    displayedDepts.map((dept, index) => (
-                      <div key={`dept-${index}`} className="flex items-center gap-2 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 text-xs font-medium text-purple-700 animate-in zoom-in-95 duration-200">
-                        <span>dept: <span className="font-semibold">{dept}</span></span>
-                        <button onClick={() => handleRemoveDept(index)} className="hover:text-purple-900 font-bold ml-0.5 active:scale-75">✕</button>
-                      </div>
-                    ))
-                  ) : (
-                    <button onClick={onOpenDepartmentDirectory} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-3 py-1 rounded-full text-xs font-medium text-slate-400 hover:border-slate-400 hover:text-slate-500 transition-all active:scale-95">
-                      + Add Dept
-                    </button>
-                  )}
-                </div>
-
+                {renderInputTags()}
                 <div className="flex items-center gap-2 w-full">
                   <textarea
                     ref={textareaRef}
@@ -400,15 +405,13 @@ try {
                     rows={1}
                     className="flex-1 bg-transparent border-none focus:ring-0 text-[16px] outline-none text-slate-700 resize-none placeholder-slate-300 font-normal leading-normal h-auto no-scrollbar max-h-40 overflow-y-hidden py-1 disabled:opacity-50"
                   />
-                  <div className="flex items-center shrink-0">
-                    <button onClick={handleSendMessage} disabled={isLoading} className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center disabled:opacity-30">
-                      <span className="text-2xl text-slate-300 rotate-[-15deg] block group-hover:text-blue-500 transition-colors leading-none">➤</span>
-                    </button>
-                  </div>
+                  <button onClick={handleSendMessage} disabled={isLoading} className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center disabled:opacity-30">
+                    <span className="text-2xl text-slate-300 rotate-[-15deg] block group-hover:text-blue-500 transition-colors leading-none">➤</span>
+                  </button>
                 </div>
               </div>
             </div>
-            {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
+            {/* Disclaimer: DeepNaN is AI and can make mistakes. */}
           </div>
         </div>
       </main>
