@@ -1,5 +1,5 @@
 # esg_agent.py
-from langchain_openai import ChatOpenAI
+from langchain_deepseek import ChatDeepSeek  # NEW: DeepSeek import
 from langgraph.prebuilt import create_react_agent
 
 from esg_agent.toolkit import ESG_TOOLS
@@ -11,12 +11,14 @@ from dotenv import load_dotenv
 # Load the .env from the parent "agents" directory
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-# 1. Initialize Gemini/OpenAI wrapper
-llm = ChatOpenAI(
-    model="ilmu-glm-5.1",
+# 1. Initialize DeepSeek wrapper
+# Tool calling (create_react_agent) strictly requires deepseek-chat
+llm = ChatDeepSeek(
+    model=os.getenv("MODEL", "deepseek-chat"),
     temperature=0,
-    api_key=os.getenv("Z_AI_API_KEY"),
-    base_url=os.getenv("Z_AI_BASE_URL"), 
+    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    # Note: base_url is usually not needed for the native DeepSeek SDK, 
+    # but you can add base_url=os.getenv("DEEPSEEK_API_BASE") if using a proxy.
 )
 
 # 2. Create the stateless worker
