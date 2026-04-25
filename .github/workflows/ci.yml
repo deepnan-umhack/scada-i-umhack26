@@ -1,13 +1,41 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
-  push:
   pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
 
 jobs:
-  build:
+  frontend-checks:
+    name: Frontend Checks (React/Vite)
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-      - name: CI placeholder
-        run: echo "No CI configured; add steps for your project"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'website/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./website
+        run: npm install
+
+      - name: TypeScript build check
+        working-directory: ./website
+        run: npm run build
+        
+      - name: ESLint code quality check
+        working-directory: ./website
+        run: npm run lint
+
+      - name: Test coverage check
+        working-directory: ./website
+        run: npm run coverage

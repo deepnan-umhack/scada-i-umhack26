@@ -1,16 +1,18 @@
-# scada-i-umhack26
 
-Short description: repository initialized for the scada-i-umhack26 project.
+# HOW TO RUN?
 
-## Quickstart
+## 1. Goto scada-i-umhack26 directory
 
-- Describe the project goals and how to run or build it here.
+```bash
+cd website
+```
 
-## Files added
-- `.gitignore` — common ignores
-- `LICENSE` — MIT license
-- `.github/workflows/ci.yml` — basic CI placeholder
-- `CONTRIBUTING.md` — contribution guidelines
+## 2. Install dependencies
+```bash
+npm install
+```
 
-## License
-This project is licensed under the MIT License — see `LICENSE`.
+## 3. Start development server
+```bash
+npm run dev
+```
