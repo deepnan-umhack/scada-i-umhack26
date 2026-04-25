@@ -1,0 +1,47 @@
+name: Test Coverage
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+jobs:
+  coverage:
+    name: Frontend Coverage Check (≥85%)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        # This will FAIL the job if coverage drops below thresholds
+        # defined in vitest.config.ts (lines, functions, branches, statements ≥ 85%)
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always() # Upload even if tests fail, so you can inspect
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: Coverage summary comment on PR
+        uses: davelosert/vitest-coverage-report-action@v2
+        if: always()
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          json-summary-path: coverage/coverage-summary.json
+          json-final-path: coverage/coverage-final.json
