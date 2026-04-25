@@ -5,7 +5,6 @@
 ![Test Coverage](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/test-converage.yml/badge.svg)
 ![Unit Tests & Guardrail Safety](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/unit-tests.yml/badge.svg)
 
-**Live Demos:**
 * **Web Dashboard:** [https://scada-i.netlify.app/dashboard](https://scada-i.netlify.app/dashboard)
 * **Mobile Application:** [https://deep-nan.netlify.app/](https://deep-nan.netlify.app/)
 
