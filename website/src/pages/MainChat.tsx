@@ -135,7 +135,7 @@ const MainChat: React.FC<MainChatProps> = ({
         user_name: user?.user_metadata?.full_name
       };
 
-      const response = await fetch("https://scada-i-umhack26.onrender.com/chat", {
+      const response = await fetch("https://scada-i-umhack26-1.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadToSend),

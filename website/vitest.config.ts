@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     // Use jsdom to simulate a browser environment for React components
     environment: 'jsdom',
-
+    globals: true,  
     // Run setup file before each test (e.g. import @testing-library/jest-dom matchers)
     setupFiles: ['./src/test/setup.ts'],
 
@@ -48,7 +48,6 @@ export default defineConfig({
       reportsDirectory: './coverage',
 
       // Fail the run if thresholds are not met (redundant with thresholds but explicit)
-      all: true, // include files with 0 tests in coverage report
     },
 
     // Optional: glob for test files
