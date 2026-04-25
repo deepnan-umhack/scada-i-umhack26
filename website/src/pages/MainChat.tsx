@@ -131,7 +131,7 @@ const MainChat: React.FC<MainChatProps> = ({
       const payloadToSend = {
         message: messageForAI,
         thread_id: threadId,
-        user_id: user?.id || "user_01"
+        user_id: user?.id ? `user-${user.id}` : "user_01"
       };
 
       const response = await fetch("https://scada-i-umhack26-1.onrender.com/chat", {
