@@ -1,4 +1,4 @@
-# SCADA-i System (UMHackathon 2026)
+# SCADA-i by Team DEEP NaN (UMHackathon 2026)
 
 ![CI Status](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/ci.yml/badge.svg)
 ![Test Coverage](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/test-converage.yml/badge.svg)
