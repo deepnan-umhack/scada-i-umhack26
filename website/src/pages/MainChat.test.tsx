@@ -203,7 +203,6 @@ it('handles server error response (non-ok status)', async () => {
       // Messages should be cleared, back to empty state
       expect(screen.getByText('Planning an event?')).toBeInTheDocument();
     });
-
     it('removes displayed space tag when X is clicked', () => {
     render(<MainChat {...mockProps} displayedSpace="Hall A" />);
 
