@@ -132,30 +132,30 @@ export default function EsgReports() {
   const [pageNumber, setPageNumber] = useState(1);
 
   // --- Fetch ESG Reports from Supabase ---
-  useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('esg_reports')
-          .select('*')
-          .order('created_at', { ascending: false });
+  const fetchReports = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('esg_reports')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error("Supabase Error:", error);
-          throw error;
-        }
-
-        if (data) {
-          setDbReports(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch ESG reports:", err);
-      } finally {
-        setIsLoading(false);
+      if (error) {
+        console.error("Supabase Error:", error);
+        throw error;
       }
-    };
 
+      if (data) {
+        setDbReports(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch ESG reports:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchReports();
   }, []);
 
@@ -170,7 +170,7 @@ export default function EsgReports() {
     setGenerationState('generating');
 
     try {
-      const response = await fetch("https://scada-i-umhack26.onrender.com/chat", {
+      const response = await fetch("https://scada-i-umhack26-1.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -184,6 +184,7 @@ export default function EsgReports() {
       console.log("Report Generation Output:", data);
       
       setGenerationState('success');
+      await fetchReports();
     } catch (err) {
       console.error("Failed to trigger report generation:", err);
       setGenerationState('idle');
@@ -293,7 +294,7 @@ export default function EsgReports() {
 
           {!isLoading && filteredReports.length > 0 ? (
             <div className="divide-y divide-gray-100">
-              {filteredReports.map((report) => (
+              {filteredReports.map((report, index) => (
                 <div 
                   key={report.id}
                   onClick={() => setSelectedReport(report)}
@@ -304,7 +305,7 @@ export default function EsgReports() {
                       <FileText size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">ESG Building Performance Report</h4>
+                      <h4 className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">ESG Building Performance Report #{filteredReports.length - index}</h4>
                       <div className="flex items-center gap-2.5 mt-1 flex-wrap">
                         <span className="text-xs font-mono font-medium text-gray-500">
                           {report.id}
@@ -312,10 +313,6 @@ export default function EsgReports() {
                         <span className="hidden sm:inline text-gray-300 text-[10px]">•</span>
                         <span className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar size={12} className="text-gray-400" /> {formatDate(report.created_at)}
-                        </span>
-                        <span className="hidden sm:inline text-gray-300 text-[10px]">•</span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Verified
                         </span>
                       </div>
                     </div>

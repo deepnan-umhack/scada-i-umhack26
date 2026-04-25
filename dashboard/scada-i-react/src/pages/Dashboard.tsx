@@ -205,7 +205,7 @@ export default function Dashboard() {
       payload: JSON.stringify(payloadObj)
     };
     
-    if (topic === "scada-i-demo/ai") {
+    if (topic === "scada-i-demo/ai" || topic === "scada-i-demo/control") {
       setAiLogs(prev => [newLog, ...prev].slice(0, 50));
     } else {
       setLogs(prev => [newLog, ...prev].slice(0, 50));
@@ -294,6 +294,7 @@ export default function Dashboard() {
       client.subscribe("scada-i-demo/sensors");
       client.subscribe("scada-i-demo/status");
       client.subscribe("scada-i-demo/ai");
+      client.subscribe("scada-i-demo/control");
       addLog('IN', 'system', { status: 'Connected to broker.emqx.io' });
     });
 
@@ -893,7 +894,7 @@ export default function Dashboard() {
             ) : null}
             <div className="absolute inset-0 h-full flex flex-row bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               {(() => {
-              const statusTypes = ["PENDING", "IN PROGRESS", "UPCOMING", "COMPLETED", "CANCELLED"];
+              const statusTypes = ["IN PROGRESS", "UPCOMING", "COMPLETED", "CANCELLED"];
               const activeLabel = expandedBookingStatus || statusTypes[0];
               const activeBookings = dbBookings.filter(b => b.status.label === activeLabel);
               const safeIndex = currentBookingIndex >= activeBookings.length ? 0 : currentBookingIndex;
@@ -907,7 +908,6 @@ export default function Dashboard() {
                       const count = dbBookings.filter(b => b.status.label === statusLabel).length;
                       
                       const activeContainerStyles: Record<string, string> = {
-                        'PENDING': 'bg-purple-100 border-purple-300 text-purple-900',
                         'IN PROGRESS': 'bg-blue-100 border-blue-300 text-blue-900',
                         'UPCOMING': 'bg-amber-100 border-amber-300 text-amber-900',
                         'COMPLETED': 'bg-emerald-100 border-emerald-300 text-emerald-900',
