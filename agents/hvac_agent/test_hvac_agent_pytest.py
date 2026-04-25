@@ -1,5 +1,5 @@
 import pytest
-from agents.hvac_agent import hvac_agent
+from agents.hvac_agent.hvac_agent import hvac_agent
 import asyncio
 
 ROOM_NAME = "Huddle Room 1"
