@@ -10,11 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.104.1",
     "@tailwindcss/vite": "^4.2.2",
     "lucide-react": "^1.7.0",
     "mqtt": "^5.15.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-pdf": "^10.4.1",
     "react-router-dom": "^7.13.2",
     "recharts": "^3.8.1",
     "tailwindcss": "^4.2.2"

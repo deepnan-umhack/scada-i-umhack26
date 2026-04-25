@@ -1,36 +1,74 @@
 import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { 
-  FileText, Calendar, Download, Plus, X, CheckCircle2, ChevronRight, ChevronDown, Search, LayoutDashboard 
+  FileText, Calendar, Download, Plus, X, CheckCircle2, ChevronRight, ChevronLeft, Search 
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Document, Page, pdfjs } from 'react-pdf';
 
-// --- Mock Data ---
-const pastReports = [
-  { 
-    id: "ESG-202604-FBA3CC", 
-    date: "23 April 2026", 
-    period: "1 January 2024 – 31 January 2024",
-    title: "ESG Building Performance Report", 
-    status: "Verified", 
-    score: "94", 
-    author: "ESG Analytics System" 
-  },
-  { 
-    id: "ESG-2025-Q4", 
-    date: "Jan 5, 2026", 
-    period: "1 October 2025 – 31 December 2025",
-    title: "Q4 2025 Facility Carbon Footprint", 
-    status: "Verified", 
-    score: "88", 
-    author: "Admin" 
-  },
-];
+// --- Set up the pdfjs worker ---
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+// --- Initialize Supabase Client ---
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- Types ---
+type ESGReport = {
+  id: string;
+  period_start: string;
+  period_end: string;
+  generated_by: string;
+  total_energy_kwh: number | string;
+  carbon_footprint_kg: number | string;
+  hvac_efficiency_rating: number;
+  sustainability_status: string;
+  created_at: string;
+  report_pdf_url: string;
+};
 
 export default function EsgReports() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [selectedReport, setSelectedReport] = useState<typeof pastReports[0] | null>(null);
+  
+  const [dbReports, setDbReports] = useState<ESGReport[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [selectedReport, setSelectedReport] = useState<ESGReport | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // --- react-pdf State ---
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+
+  // --- Fetch ESG Reports from Supabase ---
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('esg_reports')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error("Supabase Error:", error);
+          throw error;
+        }
+
+        if (data) {
+          setDbReports(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch ESG reports:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, []);
 
   // Simulate report generation process
   useEffect(() => {
@@ -58,9 +96,22 @@ export default function EsgReports() {
     setGenerationProgress(0);
   };
 
-  const filteredReports = pastReports.filter((report) => 
+  const filteredReports = dbReports.filter((report) => 
     report.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Helper formatting functions
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    });
+  };
+
+  // react-pdf load handler
+  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    setNumPages(numPages);
+    setPageNumber(1); // Reset to page 1 on new document open
+  };
 
   return (
     <div className="w-full pb-6 lg:pb-0 font-sans text-gray-900 bg-transparent min-h-full flex flex-col gap-6">
@@ -69,8 +120,6 @@ export default function EsgReports() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <nav className="flex items-center space-x-2 text-sm font-medium text-gray-500 mb-2">
-            {/* <span className="text-gray-900">PAGES</span> */}
-            {/* <ChevronRight size={14} className="text-gray-400" /> */}
             <Link to="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
             <span className="text-gray-400 px-1">•</span>
             <span className="text-indigo-600">ESG Reports</span>
@@ -81,7 +130,7 @@ export default function EsgReports() {
       </div>
 
       {/* Main Content: Report Archive List */}
-      <div className="flex-1 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col overflow-hidden">
+      <div className="flex-1 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col overflow-hidden relative">
         <div className="p-4 lg:px-6 lg:py-4 border-b border-gray-200 flex flex-col md:flex-row md:justify-between md:items-center bg-gray-50/50 gap-4">
           <div>
             <h3 className="text-base font-semibold text-gray-900">Report Archive</h3>
@@ -110,8 +159,15 @@ export default function EsgReports() {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full">
-          {filteredReports.length > 0 ? (
+        <div className="flex-1 overflow-y-auto flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full relative">
+          
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
+
+          {!isLoading && filteredReports.length > 0 ? (
             <div className="divide-y divide-gray-100">
               {filteredReports.map((report) => (
                 <div 
@@ -124,18 +180,18 @@ export default function EsgReports() {
                       <FileText size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">{report.title}</h4>
+                      <h4 className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">ESG Building Performance Report</h4>
                       <div className="flex items-center gap-2.5 mt-1 flex-wrap">
                         <span className="text-xs font-mono font-medium text-gray-500">
                           {report.id}
                         </span>
                         <span className="hidden sm:inline text-gray-300 text-[10px]">•</span>
                         <span className="text-xs text-gray-500 flex items-center gap-1">
-                          <Calendar size={12} className="text-gray-400" /> {report.date}
+                          <Calendar size={12} className="text-gray-400" /> {formatDate(report.created_at)}
                         </span>
                         <span className="hidden sm:inline text-gray-300 text-[10px]">•</span>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide ${report.status === 'Verified' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                          {report.status}
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Verified
                         </span>
                       </div>
                     </div>
@@ -143,9 +199,9 @@ export default function EsgReports() {
                   
                   <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-auto w-full pt-2 sm:pt-0 pl-12 sm:pl-0">
                     <div className="flex flex-col items-start sm:items-end">
-                      <span className="text-[10px] uppercase text-gray-400 font-semibold tracking-wider">Score</span>
+                      <span className="text-[10px] uppercase text-gray-400 font-semibold tracking-wider">HVAC Rating</span>
                       <div className="flex items-baseline gap-0.5">
-                        <span className="text-lg font-bold text-gray-900">{report.score}</span>
+                        <span className="text-lg font-bold text-gray-900">{report.hvac_efficiency_rating}</span>
                         <span className="text-xs font-medium text-gray-400">/100</span>
                       </div>
                     </div>
@@ -156,13 +212,15 @@ export default function EsgReports() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-center">
+          ) : !isLoading ? (
+            <div className="flex flex-col items-center justify-center h-48 text-center mt-10">
               <FileText className="w-8 h-8 text-gray-300 mb-3" />
               <p className="text-sm font-medium text-gray-900">No reports found</p>
-              <p className="text-xs text-gray-500 mt-1">We couldn't find any reports matching "{searchQuery}"</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {searchQuery ? `We couldn't find any reports matching "${searchQuery}"` : "The archive is currently empty."}
+              </p>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -204,19 +262,19 @@ export default function EsgReports() {
         </div>
       )}
 
-      {/* View Report Full-Screen Modal */}
+      {/* View Report react-pdf Modal */}
       {selectedReport && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black/70 backdrop-blur-sm transition-all duration-300 animate-in fade-in">
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-md transition-all duration-300 animate-in fade-in">
           
           {/* Top Toolbar */}
-          <div className="w-full flex justify-between items-center px-4 py-3 md:px-6 absolute top-0 z-10 bg-gradient-to-b from-black/60 to-transparent">
+          <div className="w-full flex justify-between items-center px-4 py-3 md:px-6 absolute top-0 z-10 bg-gradient-to-b from-black/80 to-transparent">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded flex items-center justify-center bg-blue-500/20 text-blue-400">
                 <FileText size={18} />
               </div>
               <div className="flex flex-col">
                 <h2 className="text-sm font-semibold text-white truncate max-w-xs md:max-w-xl">
-                  {selectedReport.title}.pdf
+                  ESG Building Performance Report.pdf
                 </h2>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-gray-400">
@@ -227,10 +285,16 @@ export default function EsgReports() {
             </div>
             
             <div className="flex items-center gap-2 md:gap-4">
-              <button className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition-colors hidden sm:block" title="Download">
+              <a 
+                href={selectedReport.report_pdf_url} 
+                target="_blank" 
+                rel="noreferrer"
+                className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition-colors hidden sm:block" 
+                title="Download / View External PDF"
+              >
                 <Download size={18} />
-              </button>
-              <div className="w-px h-5 bg-gray-700 hidden sm:block"></div>
+              </a>
+              <div className="w-px h-5 bg-gray-600 hidden sm:block"></div>
               <button 
                 onClick={() => setSelectedReport(null)}
                 className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition-colors"
@@ -241,237 +305,61 @@ export default function EsgReports() {
             </div>
           </div>
 
-          {/* Document Viewer Area */}
+          {/* Centered react-pdf Viewer Area */}
           <div 
-            className="flex-1 w-full h-full overflow-y-auto flex justify-center items-start pt-20 pb-12 px-4 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:border-4 [&::-webkit-scrollbar-thumb]:border-gray-900 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-500"
+            className="flex-1 w-full h-full pt-24 pb-24 flex justify-center items-start relative z-0 overflow-y-auto [&::-webkit-scrollbar]:hidden"
             onClick={(e) => {
-              // Close if clicking the background, not the document
+              // Close if clicking the transparent background
               if (e.target === e.currentTarget) setSelectedReport(null);
             }}
           >
-            {/* The "Paper" Document */}
-            <div className="bg-white w-full max-w-4xl shadow-2xl rounded-sm p-8 md:p-16 lg:p-20 shrink-0 flex flex-col animate-in slide-in-from-bottom-8 duration-500 font-serif text-gray-800 leading-relaxed">
-               
-               {/* Document Header */}
-               <div className="border-b-2 border-gray-900 pb-8 mb-8 text-center">
-                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight mb-6 uppercase">{selectedReport.title}</h1>
-                 
-                 <div className="grid grid-cols-2 gap-y-3 max-w-2xl mx-auto text-left text-sm">
-                    <div className="font-bold text-gray-900">Reporting Period:</div>
-                    <div className="text-gray-700">{selectedReport.period}</div>
-                    
-                    <div className="font-bold text-gray-900">Report ID:</div>
-                    <div className="font-mono text-gray-700">{selectedReport.id}</div>
-                    
-                    <div className="font-bold text-gray-900">Prepared For:</div>
-                    <div className="text-gray-700">Building Owner / Facility Management Team</div>
-                    
-                    <div className="font-bold text-gray-900">Prepared By:</div>
-                    <div className="text-gray-700">{selectedReport.author}</div>
-                    
-                    <div className="font-bold text-gray-900">Generated On:</div>
-                    <div className="text-gray-700">{selectedReport.date}</div>
-                 </div>
-               </div>
-
-               {/* Document Body */}
-               <div className="space-y-8 text-[15px]">
-                 
-                 {/* Section 1 */}
-                 <section>
-                   <h2 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-1">1. Executive Summary</h2>
-                   <p className="mb-3">This ESG report evaluates the environmental performance and operational efficiency of the building for the reporting period. The building demonstrates strong sustainability performance, with:</p>
-                   <ul className="list-disc pl-6 mb-3 space-y-1">
-                     <li>High HVAC efficiency (92%)</li>
-                     <li>Controlled carbon emissions relative to energy consumption</li>
-                     <li>Stable operational sustainability classification (“Optimal” status)</li>
-                   </ul>
-                   <p>Overall, the building is performing within acceptable ESG benchmarks for commercial facilities, with strong alignment to energy efficiency and emissions management expectations commonly tracked in modern building ESG frameworks.</p>
-                 </section>
-
-                 {/* Section 2 */}
-                 <section>
-                   <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-1">2. Environmental Performance (E)</h2>
-                   
-                   <div className="space-y-6">
-                     <div>
-                       <h3 className="text-base font-bold text-gray-900 mb-2">2.1 Energy Consumption</h3>
-                       <p className="mb-2"><span className="font-semibold text-gray-900">Total Energy Consumption:</span> 6,346.20 kWh</p>
-                       <p className="mb-2"><span className="font-semibold text-gray-900">Interpretation:</span> This energy usage reflects a moderate consumption profile typical of a mid-sized commercial or mixed-use building. In ESG reporting standards, energy consumption is a primary driver of emissions and operational efficiency assessment.</p>
-                       <p className="font-semibold text-gray-900 mb-1">Key observations:</p>
-                       <ul className="list-disc pl-6 space-y-1">
-                         <li>Energy usage appears stable for a one-month reporting cycle</li>
-                         <li>No abnormal spikes detected</li>
-                         <li>Likely driven by HVAC and base-load operations</li>
-                       </ul>
-                     </div>
-
-                     <div>
-                       <h3 className="text-base font-bold text-gray-900 mb-2">2.2 Carbon Footprint</h3>
-                       <p className="mb-1"><span className="font-semibold text-gray-900">Total Carbon Emissions:</span> 2,475.02 kg CO₂e</p>
-                       <p className="mb-2"><span className="font-semibold text-gray-900">Emissions Intensity:</span> 0.39 kg CO₂e per kWh (approx.)</p>
-                       <p className="mb-2"><span className="font-semibold text-gray-900">Interpretation:</span> This emissions intensity is within a typical range for grid-powered commercial buildings depending on regional energy mix. ESG frameworks commonly track Scope 2 emissions from electricity consumption as a core indicator.</p>
-                       <p className="font-semibold text-gray-900 mb-1">Key insights:</p>
-                       <ul className="list-disc pl-6 space-y-1">
-                         <li>Emissions closely correlate with energy consumption (expected behavior)</li>
-                         <li>No indication of inefficient energy-to-carbon conversion</li>
-                         <li>Suggests grid-dependent but controlled energy sourcing</li>
-                       </ul>
-                     </div>
-
-                     <div>
-                       <h3 className="text-base font-bold text-gray-900 mb-2">2.3 HVAC Efficiency</h3>
-                       <p className="mb-2"><span className="font-semibold text-gray-900">HVAC Efficiency Rating:</span> 92%</p>
-                       <p className="mb-2"><span className="font-semibold text-gray-900">Interpretation:</span> A 92% efficiency rating indicates high-performing HVAC systems, suggesting:</p>
-                       <ul className="list-disc pl-6 mb-2 space-y-1">
-                         <li>Effective temperature regulation</li>
-                         <li>Optimized energy-to-comfort ratio</li>
-                         <li>Reduced energy wastage from cooling/heating cycles</li>
-                       </ul>
-                       <p>Modern ESG building frameworks emphasize HVAC efficiency as a critical lever for reducing operational carbon emissions and improving indoor environmental quality.</p>
-                     </div>
-
-                     <div>
-                       <h3 className="text-base font-bold text-gray-900 mb-2">2.4 Sustainability Status</h3>
-                       <p className="mb-2"><span className="font-semibold text-gray-900">Status:</span> Optimal</p>
-                       <p className="mb-2"><span className="font-semibold text-gray-900">Meaning:</span> This classification indicates that current building operations are:</p>
-                       <ul className="list-disc pl-6 space-y-1">
-                         <li>Within defined sustainability thresholds</li>
-                         <li>Operating efficiently relative to energy and emissions benchmarks</li>
-                         <li>Not exhibiting critical environmental risk signals</li>
-                       </ul>
-                     </div>
-                   </div>
-                 </section>
-
-                 {/* Section 3 */}
-                 <section>
-                   <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-1">3. Key ESG Indicators Summary</h2>
-                   <div className="overflow-hidden border border-gray-300 rounded-md mb-6">
-                     <table className="w-full text-left border-collapse bg-white font-sans text-sm">
-                       <thead>
-                         <tr className="bg-gray-100 border-b border-gray-300">
-                           <th className="py-2.5 px-4 font-semibold text-gray-900">Indicator</th>
-                           <th className="py-2.5 px-4 font-semibold text-gray-900">Value</th>
-                           <th className="py-2.5 px-4 font-semibold text-gray-900">Assessment</th>
-                         </tr>
-                       </thead>
-                       <tbody className="divide-y divide-gray-200">
-                         <tr>
-                           <td className="py-2.5 px-4 font-medium text-gray-900">Final ESG Score</td>
-                           <td className="py-2.5 px-4 text-indigo-700 font-bold">{selectedReport.score} / 100</td>
-                           <td className="py-2.5 px-4 text-gray-700">Excellent performance</td>
-                         </tr>
-                         <tr className="bg-gray-50/50">
-                           <td className="py-2.5 px-4 font-medium text-gray-900">Energy Consumption</td>
-                           <td className="py-2.5 px-4 text-gray-700">6,346.20 kWh</td>
-                           <td className="py-2.5 px-4 text-gray-700">Normal operational range</td>
-                         </tr>
-                         <tr>
-                           <td className="py-2.5 px-4 font-medium text-gray-900">Carbon Emissions</td>
-                           <td className="py-2.5 px-4 text-gray-700">2,475.02 kg CO₂e</td>
-                           <td className="py-2.5 px-4 text-gray-700">Moderate intensity</td>
-                         </tr>
-                         <tr className="bg-gray-50/50">
-                           <td className="py-2.5 px-4 font-medium text-gray-900">HVAC Efficiency</td>
-                           <td className="py-2.5 px-4 text-gray-700">92%</td>
-                           <td className="py-2.5 px-4 text-gray-700">High efficiency</td>
-                         </tr>
-                         <tr>
-                           <td className="py-2.5 px-4 font-medium text-gray-900">Sustainability Status</td>
-                           <td className="py-2.5 px-4 text-gray-700">Optimal</td>
-                           <td className="py-2.5 px-4 text-gray-700">No risk flags</td>
-                         </tr>
-                       </tbody>
-                     </table>
-                   </div>
-                 </section>
-
-                 {/* Section 4 */}
-                 <section>
-                   <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-1">4. Environmental Insights</h2>
-                   
-                   <div className="space-y-4">
-                     <div>
-                       <h3 className="text-base font-bold text-gray-900 mb-1">4.1 Performance Overview</h3>
-                       <p>The building demonstrates a well-balanced energy-to-emissions profile, indicating efficient system integration and no major inefficiencies in HVAC or base-load systems.</p>
-                     </div>
-                     <div>
-                       <h3 className="text-base font-bold text-gray-900 mb-1">4.2 Emissions Drivers</h3>
-                       <p className="mb-1">Primary emissions are likely driven by:</p>
-                       <ul className="list-disc pl-6 space-y-1">
-                         <li>HVAC operation (cooling load)</li>
-                         <li>Lighting and plug loads</li>
-                         <li>Baseline electrical consumption</li>
-                       </ul>
-                     </div>
-                     <div>
-                       <h3 className="text-base font-bold text-gray-900 mb-1">4.3 Benchmark Interpretation</h3>
-                       <p className="mb-1">Compared to typical commercial ESG reporting structures:</p>
-                       <ul className="list-disc pl-6 space-y-1">
-                         <li>Energy performance is stable</li>
-                         <li>Emissions are proportional (no abnormal carbon leakage)</li>
-                         <li>Efficiency indicators are above average due to HVAC performance</li>
-                       </ul>
-                     </div>
-                   </div>
-                 </section>
-
-                 {/* Section 5 */}
-                 <section>
-                   <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-1">5. Risk & Opportunity Assessment</h2>
-                   
-                   <div className="space-y-4">
-                     <div>
-                       <h3 className="text-base font-bold text-gray-900 mb-1">5.1 Environmental Risks</h3>
-                       <ul className="list-disc pl-6 space-y-1">
-                         <li>Moderate dependence on grid electricity</li>
-                         <li>Carbon footprint tied directly to energy consumption patterns</li>
-                       </ul>
-                     </div>
-                     <div>
-                       <h3 className="text-base font-bold text-gray-900 mb-1">5.2 Improvement Opportunities</h3>
-                       <ul className="list-disc pl-6 space-y-1">
-                         <li>Increase renewable energy sourcing (solar integration or green tariffs)</li>
-                         <li>Further optimization of HVAC scheduling and occupancy-based controls</li>
-                         <li>Implementation of real-time energy monitoring dashboards</li>
-                       </ul>
-                     </div>
-                   </div>
-                 </section>
-
-                 {/* Section 6 */}
-                 <section>
-                   <h2 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-1">6. Governance (G)</h2>
-                   <p className="mb-2">Although governance data was not provided, standard ESG building frameworks typically require:</p>
-                   <ul className="list-disc pl-6 mb-3 space-y-1">
-                     <li>Energy data transparency and audit trails</li>
-                     <li>Automated reporting integrity controls</li>
-                     <li>Verified operational datasets</li>
-                   </ul>
-                   <p>This report assumes structured data logging and consistent measurement methodology.</p>
-                 </section>
-
-                 {/* Section 7 */}
-                 <section>
-                   <h2 className="text-lg font-bold text-gray-900 mb-3 border-b border-gray-200 pb-1">7. Conclusion</h2>
-                   <p className="mb-2">The building demonstrates strong ESG performance for the reporting period, with:</p>
-                   <ul className="list-disc pl-6 mb-3 space-y-1">
-                     <li>Efficient HVAC operation (92%)</li>
-                     <li>Controlled carbon emissions aligned with energy use</li>
-                     <li>Stable and optimal sustainability classification</li>
-                   </ul>
-                   <p>From an ESG compliance perspective, the building is currently operating within acceptable sustainability thresholds, with clear opportunities to further improve through renewable energy integration and smart energy optimization strategies.</p>
-                 </section>
-
-               </div>
-               
-               {/* End of Document Footer */}
-               <div className="mt-16 pt-6 border-t border-gray-300 text-center text-sm text-gray-400 font-sans tracking-widest uppercase">
-                 --- End of Report ---
-               </div>
-            </div>
+             <Document
+                file={selectedReport.report_pdf_url}
+                onLoadSuccess={onDocumentLoadSuccess}
+                loading={
+                  <div className="flex flex-col items-center justify-center text-white/70 h-[50vh]">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/70 mb-4"></div>
+                  </div>
+                }
+                className="flex justify-center"
+             >
+                <Page 
+                  pageNumber={pageNumber} 
+                  renderTextLayer={false} 
+                  renderAnnotationLayer={false}
+                  className="shadow-2xl rounded-sm overflow-hidden pointer-events-none max-w-[95vw]"
+                  width={Math.min(window.innerWidth * 0.95, 850)} 
+                />
+             </Document>
           </div>
+
+          {/* Subtle Professional Pagination Controls */}
+          {numPages && numPages > 0 && (
+            <div className="absolute bottom-6 md:bottom-8 left-1/2 transform -translate-x-1/2 bg-[#1a1a1a]/85 backdrop-blur-md text-gray-300 px-1.5 py-1 rounded-full shadow-xl z-20 border border-white/10 flex items-center gap-3 transition-all select-none">
+              <button 
+                disabled={pageNumber <= 1}
+                onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
+                className="p-1.5 rounded-full hover:bg-white/10 hover:text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                aria-label="Previous Page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              <span className="text-[10px] font-semibold tracking-[0.2em] opacity-80 min-w-[3rem] text-center">
+                {pageNumber} / {numPages}
+              </span>
+              
+              <button 
+                disabled={pageNumber >= numPages}
+                onClick={() => setPageNumber(prev => Math.min(prev + 1, numPages))}
+                className="p-1.5 rounded-full hover:bg-white/10 hover:text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                aria-label="Next Page"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+
         </div>
       )}
     </div>

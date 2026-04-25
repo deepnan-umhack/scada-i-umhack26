@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import mqtt from "mqtt";
+import { createClient } from "@supabase/supabase-js";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, 
   LineChart, Line, ReferenceLine, Legend
@@ -8,6 +9,11 @@ import {
   Cloud, Zap, Users, Leaf, Lightbulb, Settings2, User, Bot, Thermometer, Droplets, X, Wind, Minus, Plus, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, Package, FileText 
 } from "lucide-react";
 import { Link } from "react-router-dom";
+
+// --- Initialize Supabase Client ---
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // --- Types ---
 type LogEntry = {
@@ -169,6 +175,8 @@ export default function Dashboard() {
   const topicDropdownRef = useRef<HTMLDivElement>(null);
 
   // --- Booking Status State ---
+  const [dbBookings, setDbBookings] = useState<any[]>([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(true);
   const [expandedBookingStatus, setExpandedBookingStatus] = useState<string | null>(null);
   const [currentBookingIndex, setCurrentBookingIndex] = useState(0);
 
@@ -222,6 +230,60 @@ export default function Dashboard() {
     }
   };
 
+  // --- Supabase Bookings Fetch ---
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        setIsLoadingBookings(true);
+        const { data, error } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            rooms ( name )
+          `)
+          .order('start_time', { ascending: true });
+
+        if (error) throw error;
+
+        if (data) {
+          const formatted = data.map((b: any) => {
+            const startDate = new Date(b.start_time);
+            const endDate = new Date(b.end_time);
+            const createdDate = new Date(b.created_at || new Date());
+
+            const dateStr = `${startDate.toLocaleDateString('en-GB')} (${startDate.toLocaleDateString('en-GB', { weekday: 'long' })})`;
+            const timeStr = `${startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }).toLowerCase()} - ${endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }).toLowerCase()}`;
+            const promptTimestamp = `${createdDate.toLocaleDateString('en-GB')}, ${createdDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).toLowerCase()}`;
+
+            return {
+              status: { label: (b.status || 'PENDING').toUpperCase(), determined_by: "system" },
+              event: { 
+                name: b.purpose || "Untitled Booking", 
+                date: dateStr, 
+                time: timeStr, 
+                room: b.rooms?.name || "Unknown Room", 
+                equipment: "N/A", 
+                department: "N/A" 
+              },
+              user_prompt: { 
+                timestamp: promptTimestamp, 
+                message: b.source_prompt || "No prompt provided" 
+              }
+            };
+          });
+          setDbBookings(formatted);
+        }
+      } catch (err) {
+        console.error("Failed to fetch bookings:", err);
+      } finally {
+        setIsLoadingBookings(false);
+      }
+    };
+
+    fetchBookings();
+  }, []);
+
+  // --- MQTT Subscription ---
   useEffect(() => {
     const client = mqtt.connect("wss://broker.emqx.io:8084/mqtt");
     clientRef.current = client;
@@ -446,8 +508,6 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 lg:mb-6 gap-4 px-4 pt-4 lg:px-0 lg:pt-0">
         <div>
           <nav className="flex items-center space-x-2 text-sm font-medium text-gray-500 mb-2">
-            {/* <span className="text-gray-900">SCADA-i</span>
-            <ChevronRight size={14} className="text-gray-400" /> */}
             <span className="text-indigo-600">Dashboard</span>
             <span className="text-gray-400 px-1">•</span>
             <Link to="/dashboard/esg-reports" className="hover:text-gray-900 transition-colors">ESG Reports</Link>
@@ -781,44 +841,16 @@ export default function Dashboard() {
           </div>
           
           <div className="flex-1 relative min-h-[300px] lg:min-h-0 mt-0">
+            {isLoadingBookings ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10 rounded-xl border border-gray-200">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              </div>
+            ) : null}
             <div className="absolute inset-0 h-full flex flex-row bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               {(() => {
-              const mockBookings = [
-                {
-                  status: { label: "IN PROGRESS", determined_by: "agentic_ai" },
-                  event: { name: "AI Project Showcase", date: "23/4/2026 (Thursday)", time: "10:00 a.m. - 4:00 p.m", room: "Dewan Tan Sri Ainuddin", equipment: "10 x Table, 3 x Camera, 2 x Microphone", department: "UTM Digital, Department of Deputy Vice-Chancellor (Student Affairs)" },
-                  user_prompt: { timestamp: "16/4/2026, 10:00:40 a.m.", message: "Assist me with the planning of AI project showcase on 23/4/2026 10 morning till 4 evening. Thanks." }
-                },
-                {
-                  status: { label: "IN PROGRESS", determined_by: "agentic_ai" },
-                  event: { name: "Robotics Seminar", date: "24/4/2026 (Friday)", time: "09:00 a.m. - 12:00 p.m", room: "Bilik Seminar 1", equipment: "1 x Projector, 1 x Microphone", department: "Faculty of Engineering" },
-                  user_prompt: { timestamp: "20/4/2026, 14:30:00 p.m.", message: "Book a seminar room for the robotics seminar this Friday." }
-                },
-                {
-                  status: { label: "UPCOMING", determined_by: "agentic_ai" },
-                  event: { name: "Annual Tech Symposium", date: "30/4/2026 (Thursday)", time: "08:00 a.m. - 5:00 p.m", room: "Dewan Sultan Iskandar", equipment: "50 x Table, 5 x Projector", department: "UTM Digital" },
-                  user_prompt: { timestamp: "01/4/2026, 09:15:00 a.m.", message: "Plan the Annual Tech Symposium for the end of April." }
-                },
-                {
-                  status: { label: "UPCOMING", determined_by: "agentic_ai" },
-                  event: { name: "Cloud Computing Workshop", date: "05/5/2026 (Tuesday)", time: "02:00 p.m. - 4:00 p.m", room: "Makmal Komputer 3", equipment: "30 x PC, 1 x Projector", department: "School of Computing" },
-                  user_prompt: { timestamp: "18/4/2026, 11:20:00 a.m.", message: "Need a computer lab for a cloud workshop next month." }
-                },
-                {
-                  status: { label: "COMPLETED", determined_by: "agentic_ai" },
-                  event: { name: "Machine Learning Bootcamp", date: "15/4/2026 (Wednesday)", time: "09:00 a.m. - 5:00 p.m", room: "Dewan Kuliah 2", equipment: "1 x Projector, 2 x Whiteboard", department: "School of Computing" },
-                  user_prompt: { timestamp: "05/4/2026, 10:05:00 a.m.", message: "Organize a ML bootcamp mid-April." }
-                },
-                {
-                  status: { label: "CANCELLED", determined_by: "agentic_ai" },
-                  event: { name: "IoT Hackathon", date: "10/4/2026 (Friday)", time: "08:00 a.m. - 08:00 p.m", room: "Dewan Tan Sri Ainuddin", equipment: "20 x Table, 50 x Chair", department: "Faculty of Electrical Engineering" },
-                  user_prompt: { timestamp: "08/4/2026, 16:45:00 p.m.", message: "Cancel the IoT Hackathon as the main sponsor pulled out." }
-                }
-              ];
-
-              const statusTypes = ["IN PROGRESS", "UPCOMING", "COMPLETED", "CANCELLED"];
+              const statusTypes = ["PENDING", "IN PROGRESS", "UPCOMING", "COMPLETED", "CANCELLED"];
               const activeLabel = expandedBookingStatus || statusTypes[0];
-              const activeBookings = mockBookings.filter(b => b.status.label === activeLabel);
+              const activeBookings = dbBookings.filter(b => b.status.label === activeLabel);
               const safeIndex = currentBookingIndex >= activeBookings.length ? 0 : currentBookingIndex;
 
               return (
@@ -827,9 +859,10 @@ export default function Dashboard() {
                   <div className="w-[120px] lg:w-[130px] flex-shrink-0 bg-gray-50 border-r border-gray-200 flex flex-col overflow-y-auto">
                     {statusTypes.map((statusLabel, idx) => {
                       const isActive = activeLabel === statusLabel;
-                      const count = mockBookings.filter(b => b.status.label === statusLabel).length;
+                      const count = dbBookings.filter(b => b.status.label === statusLabel).length;
                       
                       const activeContainerStyles: Record<string, string> = {
+                        'PENDING': 'bg-purple-100 border-purple-300 text-purple-900',
                         'IN PROGRESS': 'bg-blue-100 border-blue-300 text-blue-900',
                         'UPCOMING': 'bg-amber-100 border-amber-300 text-amber-900',
                         'COMPLETED': 'bg-emerald-100 border-emerald-300 text-emerald-900',
