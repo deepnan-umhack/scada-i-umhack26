@@ -208,7 +208,7 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({
                       {isChosen && (
                         <div className="absolute inset-0 flex items-center justify-center bg-white/10 backdrop-blur-[1px]">
                           <span className="bg-white/90 text-slate-900 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest shadow-sm border border-slate-200">
-                            Already Tagged
+                            Tagged
                           </span>
                         </div>
                       )}

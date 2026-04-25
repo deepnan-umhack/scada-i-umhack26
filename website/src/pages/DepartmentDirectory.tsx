@@ -80,7 +80,6 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
         <div className="bg-slate-800 text-white py-3 px-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700">
           <img src={iconInfo} className="h-4 w-4 invert opacity-80" alt="info" />
           <p className="text-[12px] font-medium tracking-wide">
-            {/* Dynamic message */}
             {selectedDepts.length > 0 ? "Department already tagged!" : "Tap any card to tag it to your chat"}
           </p>
         </div>
@@ -210,20 +209,23 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
                     : 'border-slate-100/50 hover:shadow-md cursor-pointer'
                   }`}
                 >
-                  {/* Chosen Badge Overlay */}
-                  {isChosen && (
-                    <div className="absolute top-4 right-8 bg-blue-50 text-blue-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-blue-100">
-                      Already Tagged
-                    </div>
-                  )}
-
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div className="flex-1">
-                      <h3 className={`font-bold text-[17px] md:text-[18px] transition-colors leading-tight ${
-                        isChosen ? 'text-slate-400' : 'text-slate-800 group-hover:text-blue-600'
-                      }`}>
-                        {dept}
-                      </h3>
+                      {/* Badge is now same line as name */}
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className={`font-bold text-[17px] md:text-[18px] transition-colors leading-tight ${
+                          isChosen ? 'text-slate-400' : 'text-slate-800 group-hover:text-blue-600'
+                        }`}>
+                          {dept}
+                        </h3>
+
+                        {isChosen && (
+                          <div className="bg-blue-50 text-blue-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-blue-100 shrink-0">
+                            Tagged
+                          </div>
+                        )}
+                      </div>
+
                       <div className="flex items-center space-x-2 mt-2">
                         <span className={`w-2 h-2 rounded-full ${isChosen ? 'bg-slate-300' : 'bg-emerald-500'}`}></span>
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Office Open</span>
