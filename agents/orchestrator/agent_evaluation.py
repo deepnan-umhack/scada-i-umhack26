@@ -51,7 +51,7 @@ async def run_evaluation():
     thread_1 = str(uuid.uuid4()) 
     
     # Turn 1: Give incomplete room requirements (multiple options available)
-    await chat_turn(f"I need a room for 5 people tomorrow at 3 PM UTC for 1 hour. My user ID is '{VALID_USER_ID}'.", thread_1)
+    await chat_turn(f"I need a room for 5 people tomorrow at 3 PM MYT for 1 hour. My user ID is '{VALID_USER_ID}'.", thread_1)
     
     # Turn 2: Reply to the AI's question. The AI MUST remember the time/duration from Turn 1!
     await chat_turn("I'll take Discussion Room 3, please.", thread_1)
@@ -64,7 +64,7 @@ async def run_evaluation():
     thread_2 = str(uuid.uuid4()) # Fresh memory for a new user/scenario
     
     # Ask for an absurd amount of equipment to trigger an internal failure
-    await chat_turn(f"Book a room for tomorrow at 4 PM UTC. My user ID is '{VALID_USER_ID}'. Also, I need 100 portable projectors.", thread_2)
+    await chat_turn(f"Book a room for tomorrow at 4 PM MYT. My user ID is '{VALID_USER_ID}'. Also, I need 100 portable projectors.", thread_2)
 
 
     # ---------------------------------------------------------

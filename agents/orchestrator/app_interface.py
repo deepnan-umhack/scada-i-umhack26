@@ -1,4 +1,13 @@
 import sys
+import os
+
+# --- 🚀 FIX: Force Python to recognize the root 'agents' module ---
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.abspath(os.path.join(current_dir, '..', '..'))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
+import sys
 import asyncio
 import nest_asyncio
 
@@ -48,7 +57,7 @@ with st.sidebar:
     st.header("⚙️ User Settings")
     st.write("Simulate different users to test database validation.")
     
-    user_id = st.text_input("Your User ID", value="paste_your_real_user_id_here")
+    user_id = st.text_input("Your User ID", value="scadai_user_001")
     
     st.divider()
     st.caption(f"**Active Memory Thread (Postgres Key):**\n`{st.session_state.thread_id}`")

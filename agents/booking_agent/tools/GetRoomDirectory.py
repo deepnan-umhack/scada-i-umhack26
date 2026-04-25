@@ -27,7 +27,7 @@ async def get_room_directory_tool(
     min_capacity: int = 1,
     room_type: Optional[str] = None,
     required_features: Optional[List[str]] = None,
-    limit: int = 10
+    limit: int = 15
 ) -> str:
     """
     Retrieves a summary of the TYPES of rooms available in the building.

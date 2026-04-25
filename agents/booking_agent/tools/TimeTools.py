@@ -7,8 +7,10 @@ from pydantic import BaseModel, Field
 
 from langchain_core.tools import tool
 
+DEFAULT_TIMEZONE = "Asia/Kuala_Lumpur"
+
 # ------------------------------------------------------------------
-# 1. Tool: Get Current Date Time UTC
+# 1. Tool: Get Current Date Time (Malaysia)
 # ------------------------------------------------------------------
 # This tool doesn't strictly need an input schema, but LangChain/LangGraph 
 # often prefer an empty schema for consistency in tool binding.
@@ -16,18 +18,27 @@ class GetCurrentDateTimeUTCInput(BaseModel):
     pass
 
 @tool(args_schema=GetCurrentDateTimeUTCInput)
-async def get_current_datetime_utc_tool() -> str:
+async def get_current_datetime_malaysia_tool() -> str:
     """
-    Returns the current exact date and time in UTC. 
+    Returns the current exact date and time in Malaysia time (Asia/Kuala_Lumpur).
     The AI uses this to understand what "today" or "tomorrow" means.
     """
-    now_utc = datetime.now(timezone.utc)
+    now_malaysia = datetime.now(ZoneInfo(DEFAULT_TIMEZONE))
+    now_utc = now_malaysia.astimezone(timezone.utc)
     
     return json.dumps({
         "status": "success",
+        "timezone_used": DEFAULT_TIMEZONE,
+        "current_datetime_myt": now_malaysia.isoformat(),
         "current_datetime_utc": now_utc.isoformat(),
-        "current_day_of_week": now_utc.strftime("%A") # Helps the AI with "Next Tuesday"
+        "current_day_of_week": now_malaysia.strftime("%A") # Helps the AI with "Next Tuesday"
     })
+
+
+@tool(args_schema=GetCurrentDateTimeUTCInput)
+async def get_current_datetime_utc_tool() -> str:
+    """Backward-compatible alias. Returns Malaysia-local 'current date' context with UTC included."""
+    return await get_current_datetime_malaysia_tool()
 
 
 # ------------------------------------------------------------------
@@ -39,14 +50,14 @@ class ConvertUserTimeToUTCInput(BaseModel):
         description="The local date and time in naive ISO 8601 format (e.g., '2026-04-20T15:00:00'). Do NOT include timezone offsets here."
     )
     user_timezone: Optional[str] = Field(
-        default="Asia/Kuala_Lumpur",
+        default=DEFAULT_TIMEZONE,
         description="The IANA timezone database string of the user (e.g., 'America/New_York', 'Asia/Kuala_Lumpur', 'Europe/London'). Defaults to 'Asia/Kuala_Lumpur' when omitted."
     )
 
 @tool(args_schema=ConvertUserTimeToUTCInput)
 async def convert_user_time_to_utc_tool(
     local_time_string: str,
-    user_timezone: Optional[str] = "Asia/Kuala_Lumpur",
+    user_timezone: Optional[str] = DEFAULT_TIMEZONE,
 ) -> str:
     """
     Converts a user's local conversational time into the strict UTC format 
@@ -58,7 +69,7 @@ async def convert_user_time_to_utc_tool(
         local_dt = datetime.fromisoformat(local_time_string)
         
         # 2. Grab the specific timezone rules (Malaysia as fallback)
-        effective_timezone = user_timezone or "Asia/Kuala_Lumpur"
+        effective_timezone = user_timezone or DEFAULT_TIMEZONE
         tz = ZoneInfo(effective_timezone)
         
         # 3. Attach the timezone to the naive datetime
@@ -95,9 +106,9 @@ if __name__ == "__main__":
     async def run_tests():
         print("--- Testing Time Utility Tools ---")
         
-        # Test 1: Get Current UTC Time
-        print("\n[Test 1] Fetching current UTC time...")
-        result1 = await get_current_datetime_utc_tool()
+        # Test 1: Get Current Malaysia Time
+        print("\n[Test 1] Fetching current Malaysia time...")
+        result1 = await get_current_datetime_malaysia_tool()
         print(json.dumps(json.loads(result1), indent=2))
 
         # Test 2: Convert Local Time to UTC
