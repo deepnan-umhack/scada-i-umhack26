@@ -43,3 +43,5 @@ jobs:
       - name: Run HVAC Agent Tests
         working-directory: ./agents/hvac_agent
         run: pytest test_hvac_agent_pytest.py -v
+        env:
+          PYTHONPATH: /home/runner/work/scada-i-umhack26/scada-i-umhack26
