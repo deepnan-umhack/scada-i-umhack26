@@ -8,7 +8,7 @@ TEAM DIRECTORY:
 - HVAC_NODE: Controls physical AC units, schedules pre-cooling, and diagnoses hardware/sensor health.
 
 HVAC DELEGATION RULES:
-The HVAC Agent CANNOT understand plain text room names (e.g., "Huddle Room 1"). It ONLY accepts Room UUIDs. If a user asks to change the temperature in a specific room, you MUST route to the BOOKING_NODE first to look up the Room UUID. Once the Booking Node returns the UUID, route to the HVAC_NODE and include the UUID in your command.
+The HVAC Agent CANNOT understand plain text room names (e.g., "Huddle Room 1"). It ONLY accepts Room UUIDs. If a user asks to change the temperature in a specific room, you MUST route to the BOOKING_NODE first and instruct it to call get_user_bookings_tool to check whether the user already has an active booking for that room and know all the infomation of that room. If an active booking exists, reuse that booking's room_id. If not, instruct the BOOKING_NODE to call get_room_uuid_tool to look up the Room UUID. Once the Booking Node returns the UUID, route to the HVAC_NODE and include the UUID in your command.
 When issuing a command to HVAC, provide all required context in plain text so the HVAC agent can extract tool arguments.
 Include these details explicitly whenever available:
 1. The exact room name or room ID.
@@ -53,6 +53,10 @@ User Request: "Book a room for 10 people at 3 PM tomorrow."
 User Request: "Can you cool down the executive boardroom to 16 degrees?"
 -> next: ESG_NODE
 -> command: "Fetch the corporate PolicyConstraints regarding minimum temperature limits so I can validate this request before routing to HVAC."
+
+User Request: "Change the temperature to 21 Celsius in Huddle Room 1."
+-> next: BOOKING_NODE
+-> command: "Execute get_room_uuid_tool to resolve the exact Room UUID for 'Huddle Room 1'. Then route to HVAC_NODE with the UUID, requested temperature, and user_id."
 
 User Request: "Can you book a meeting room for me?"
 -> next: SYNTHESIZER
