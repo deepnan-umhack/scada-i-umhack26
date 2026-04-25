@@ -26,6 +26,10 @@ class CheckRoomAvailabilityInput(BaseModel):
     required_features: Optional[List[str]] = Field(
         None, description="Optional list of required features (e.g., ['projector'])."
     )
+    exclude_booking_id: Optional[str] = Field(
+        None, 
+        description="CRITICAL FOR UPDATES: If the user wants to update or delay an existing booking, provide the current booking ID here so the database ignores its original time slot during the availability check."
+    )
     limit: int = Field(
         5,
         description="Number of room options to return. Default is 5. Maximum is 10."
@@ -62,7 +66,11 @@ class AvailabilityResult(BaseModel):
 # 2. Database Query
 # ------------------------------------------------------------------
 async def _query_available_rooms(
-    min_capacity: int, start_time: datetime, end_time: datetime, limit: int
+    min_capacity: int, 
+    start_time: datetime, 
+    end_time: datetime, 
+    exclude_booking_id: Optional[str], 
+    limit: int
 ) -> List[dict]:
     """Return list of room dicts from DB matching capacity and not booked."""
     conn = await asyncpg.connect(DATABASE_URL)
@@ -75,8 +83,8 @@ async def _query_available_rooms(
             WHERE end_time < CURRENT_TIMESTAMP AND status = 'CONFIRMED';
         """)
 
-        # 🚀 FIX 2: THE SMART SQL OVERLAP
-        # Target ONLY 'CONFIRMED' bookings and check for time overlap
+        # 🚀 FIX 2: THE SMART SQL OVERLAP (Now with Self-Conflict prevention!)
+        # Target ONLY 'CONFIRMED' bookings, check for time overlap, and ignore the excluded ID
         query = """
             SELECT r.id, r.name, r.capacity, r.features
             FROM rooms r
@@ -86,11 +94,13 @@ async def _query_available_rooms(
                   WHERE b.status = 'CONFIRMED' 
                     AND b.start_time < $3 
                     AND b.end_time > $2
+                    AND ($4::uuid IS NULL OR b.id != $4::uuid)
               )
             ORDER BY r.capacity ASC
-            LIMIT $4
+            LIMIT $5
         """
-        rows = await conn.fetch(query, min_capacity, start_time, end_time, limit)
+        # Pass the exclude_booking_id as the 4th parameter, and limit as the 5th
+        rows = await conn.fetch(query, min_capacity, start_time, end_time, exclude_booking_id, limit)
         results = []
         for r in rows:
             features = r.get("features")
@@ -119,6 +129,7 @@ async def check_room_availability_tool(
     duration_minutes: int,
     min_capacity: int = 1,
     required_features: Optional[List[str]] = None,
+    exclude_booking_id: Optional[str] = None,
     limit: int = 5
 ) -> str:
     """
@@ -139,7 +150,10 @@ async def check_room_availability_tool(
     
     if DATABASE_URL:
         try:
-            rooms = await _query_available_rooms(min_capacity, start_time, end_time, safe_limit)
+            # Pass the new parameter into the query function
+            rooms = await _query_available_rooms(
+                min_capacity, start_time, end_time, exclude_booking_id, safe_limit
+            )
         except Exception as e:
             return AvailabilityResult(
                 status="error", 
@@ -147,6 +161,7 @@ async def check_room_availability_tool(
                 message=f"DB error: {e}"
             ).model_dump_json()
     else:
+        # Fallback dummy data if no DB is connected
         rooms = [
             {"id": "101", "name": "Boardroom A", "capacity": 10, "features": ["projector"]},
             {"id": "102", "name": "The Fishbowl", "capacity": 4, "features": ["whiteboard"]},
@@ -179,6 +194,7 @@ if __name__ == "__main__":
             "duration_minutes": 60,
             "min_capacity": 2,
             "required_features": None,
+            "exclude_booking_id": None # Test passing None
         }
         
         # Test it natively using .invoke() which LangChain V0.2+ prefers

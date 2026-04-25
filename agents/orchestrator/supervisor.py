@@ -13,6 +13,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 # Import your state and workers
 from state import AgentState
 from booking_agent.booking_agent import booking_worker
+from hvac_agent.hvac_agent import hvac_agent
 from orchestrator.prompts import build_supervisor_prompt
 # from esg_agent import esg_worker     # Uncomment when ready
 # from hvac_agent import hvac_worker   # Uncomment when ready
@@ -64,13 +65,38 @@ async def booking_node(state: AgentState) -> dict:
 
     return {"messages": [clean_message]}
 
+
+async def hvac_node(state: AgentState) -> dict:
+    """Adapter node for the HVAC Agent. Enforces Context Isolation."""
+    print('\n[ROUTER] 🔀 Routing to HVAC Agent')
+
+    boss_command = state["messages"][-1]
+
+    latest_user_prompt = None
+    for msg in reversed(state["messages"]):
+        if getattr(msg, "type", None) == "human" and getattr(msg, "content", None):
+            latest_user_prompt = str(msg.content)
+            break
+
+    command_text = str(getattr(boss_command, "content", "")).strip()
+    if latest_user_prompt:
+        command_text = f"{command_text}\n[USER REQUEST CONTEXT]: {latest_user_prompt}"
+
+    result = await hvac_agent({"command": command_text})
+
+    clean_message = AIMessage(
+        content=result.get("response_text", ""),
+        name='HVAC_Agent'
+    )
+
+    return {"messages": [clean_message]}
+
 # ==========================================
 # 2. THE SUPERVISOR (The Brain)
 # ==========================================
 # FIX 2: Replaced "FINISH" with "SYNTHESIZER" for our General Manager pattern
 class RouterSchema(BaseModel):
-    # next: Literal["BOOKING_NODE", "ESG_NODE", "HVAC_NODE", "SYNTHESIZER"] = Field(
-    next: Literal["BOOKING_NODE", "SYNTHESIZER"] = Field(
+    next: Literal["BOOKING_NODE", "HVAC_NODE", "SYNTHESIZER"] = Field(
         ..., 
         description="The next agent to route to, or SYNTHESIZER if all tasks are done or if you need to reply to the user."
     )
@@ -166,6 +192,11 @@ async def synthesizer_node(state: AgentState) -> dict:
         "Review the conversation history and the internal reports from your backend workers (Booking, ESG, HVAC). "
         "Synthesize their findings into a single, cohesive, polite response to the user. "
         "Do not mention that you are passing information between agents. Just deliver the final result."
+        "If the Supervisor passes you a direct command or question to ask the user, you MUST ask the user exactly that. Do NOT invent or assume successful actions that are not present in the internal reports."
+        "For all user-facing date/time output, default to Malaysia time (Asia/Kuala_Lumpur, MYT). "
+        "If worker reports contain UTC fields like start_time_utc/end_time_utc/pre_cool_start, convert and present them in MYT in the main response. "
+        "Do NOT present UTC-first phrasing unless the user explicitly asks for UTC. "
+        "When the user does not explicitly ask for UTC, avoid labels like 'UTC' in booking confirmation time lines."
     ))
     
     trimmed_messages = trim_messages(
@@ -191,8 +222,8 @@ workflow = StateGraph(AgentState)
 # Add all the nodes to the graph
 workflow.add_node("supervisor", supervisor_node)
 workflow.add_node("booking_node", booking_node)
+workflow.add_node("hvac_node", hvac_node)
 # workflow.add_node("esg_node", esg_node)     # Uncomment when ready
-# workflow.add_node("hvac_node", hvac_node)   # Uncomment when ready
 workflow.add_node("synthesizer", synthesizer_node)
 
 # Set the entry point: Every conversation starts at the boss
@@ -204,6 +235,7 @@ workflow.add_conditional_edges(
     lambda x: x["next"],
     {
         "BOOKING_NODE": "booking_node",
+        "HVAC_NODE": "hvac_node",
         "SYNTHESIZER": "synthesizer"
     }
 )
@@ -211,7 +243,7 @@ workflow.add_conditional_edges(
 # Return Edges: Workers ALWAYS report back to the Boss after finishing their task
 workflow.add_edge("booking_node", "supervisor")
 # workflow.add_edge("esg_node", "supervisor")   # Uncomment when ready
-# workflow.add_edge("hvac_node", "supervisor")  # Uncomment when ready
+workflow.add_edge("hvac_node", "supervisor")
 
 # The Synthesizer is the final step; it ends the graph execution
 workflow.add_edge("synthesizer", END)

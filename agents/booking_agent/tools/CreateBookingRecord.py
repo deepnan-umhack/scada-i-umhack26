@@ -122,6 +122,12 @@ async def create_booking_tool(
         return json.dumps({
             "status": "success",
             "booking_id": str(new_booking_id),
+            "room_id": room_id,
+            "user_id": user_id,
+            "start_time_utc": start_time.astimezone(timezone.utc).isoformat(),
+            "end_time_utc": end_time.astimezone(timezone.utc).isoformat(),
+            "duration_minutes": duration_minutes,
+            "purpose": purpose,
             "message": "Booking and equipment confirmed." if equipment_requests else "Room booking confirmed."
         })
 
