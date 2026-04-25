@@ -12,11 +12,9 @@ from psycopg_pool import AsyncConnectionPool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 # Import the RAW, uncompiled workflow from your orchestrator
-try:
-    from orchestrator.supervisor import workflow
-except ImportError:
-    # Fallback for running from within the orchestrator module context
-    workflow = import_module("supervisor").workflow
+
+from orchestrator.supervisor import workflow
+
 
 # Load environment variables (for local testing)
 load_dotenv(find_dotenv())

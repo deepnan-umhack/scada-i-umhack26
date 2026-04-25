@@ -1,7 +1,7 @@
 # tests/test_optimizer_integration.py
 
-from agents.hvac_agent.core.schemas import UserRequest
-from agents.hvac_agent.core.service import handle_hvac_request
+from hvac_agent.core.schemas import UserRequest
+from hvac_agent.core.service import handle_hvac_request
 
 
 def run_test(title: str, request: UserRequest):

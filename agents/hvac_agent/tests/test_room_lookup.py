@@ -1,4 +1,4 @@
-from agents.hvac_agent.core.tools import resolve_room_id
+from hvac_agent.core.tools import resolve_room_id
 
 print("\n===== Lookup by room name =====")
 print(resolve_room_id("Huddle Room 1"))

@@ -1,7 +1,7 @@
-from agents.hvac_agent.core.schemas import UserRequest, OptimizerRequest
-from agents.hvac_agent.core.controller import hvac_controller
+from hvac_agent.core.schemas import UserRequest, OptimizerRequest
+from hvac_agent.core.controller import hvac_controller
 import uuid
-from agents.hvac_agent.core.tools import (
+from hvac_agent.core.tools import (
     resolve_room_id,
     diagnose_sensor_health,
     get_room_state,
@@ -11,7 +11,7 @@ from agents.hvac_agent.core.tools import (
     request_ac_optimization,
     get_optimizer_pause_status
 )
-from agents.hvac_agent.utils.demo_logger import title, step, final_block
+from hvac_agent.utils.demo_logger import title, step, final_block
 
 
 def build_demo_summary(result: dict) -> str:

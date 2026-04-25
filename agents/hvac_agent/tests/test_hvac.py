@@ -1,4 +1,4 @@
-from agents.hvac_agent.hvac_toolkit import run_hvac_request
+from hvac_agent.hvac_toolkit import run_hvac_request
 
 print("\n===== TEST 1: Manual Override That Changes Setpoint =====")
 run_hvac_request.invoke({

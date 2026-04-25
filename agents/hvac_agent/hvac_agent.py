@@ -9,8 +9,8 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 from langchain_deepseek import ChatDeepSeek  # NEW: DeepSeek import
 from langgraph.prebuilt import create_react_agent
 
-from agents.hvac_agent.hvac_toolkit import HVAC_TOOLS
-from agents.hvac_agent.hvac_prompts import HVAC_AGENT_PROMPT
+from hvac_agent.hvac_toolkit import HVAC_TOOLS
+from hvac_agent.hvac_prompts import HVAC_AGENT_PROMPT
 
 # ==========================================
 # MODEL INITIALIZATION

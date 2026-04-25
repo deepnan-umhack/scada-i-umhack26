@@ -4,8 +4,8 @@ from typing import Optional
 
 import paho.mqtt.client as mqtt
 
-from agents.hvac_agent.config import MQTT_BROKER, MQTT_PORT, MQTT_TOPIC_SENSOR_REPLAY
-from agents.hvac_agent.infra.postgres_client import fetch_one, fetch_rows, run
+from hvac_agent.config import MQTT_BROKER, MQTT_PORT, MQTT_TOPIC_SENSOR_REPLAY
+from hvac_agent.infra.postgres_client import fetch_one, fetch_rows, run
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 

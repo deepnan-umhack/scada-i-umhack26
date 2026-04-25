@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from agents.hvac_agent.core import tools
+from hvac_agent.core import tools
 
 
 def test_save_pre_cooling_schedule_caps_to_30_minutes(monkeypatch):
@@ -117,11 +117,11 @@ def test_schedule_precooling_for_booking_passes_data_to_persistence(monkeypatch)
         captured["pre_cool_start"] = pre_cool_start
         return {"status": "success", "message": "ok", "data": []}
 
-    monkeypatch.setattr("agents.hvac_agent.hvac_toolkit.resolve_room_id", fake_resolve_room_id)
-    monkeypatch.setattr("agents.hvac_agent.hvac_toolkit.calculate_weather_aware_precool_start", _Recommender)
-    monkeypatch.setattr("agents.hvac_agent.hvac_toolkit.save_pre_cooling_schedule", fake_save_pre_cooling_schedule)
+    monkeypatch.setattr("hvac_agent.hvac_toolkit.resolve_room_id", fake_resolve_room_id)
+    monkeypatch.setattr("hvac_agent.hvac_toolkit.calculate_weather_aware_precool_start", _Recommender)
+    monkeypatch.setattr("hvac_agent.hvac_toolkit.save_pre_cooling_schedule", fake_save_pre_cooling_schedule)
 
-    from agents.hvac_agent.hvac_toolkit import schedule_precooling_for_booking
+    from hvac_agent.hvac_toolkit import schedule_precooling_for_booking
 
     result = schedule_precooling_for_booking.func(
         booking_start="2026-05-11T14:00:00Z",

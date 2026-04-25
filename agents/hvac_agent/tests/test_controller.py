@@ -1,5 +1,5 @@
-from agents.hvac_agent.core.schemas import RoomState, UserRequest, PolicyConstraints
-from agents.hvac_agent.core.controller import hvac_controller
+from hvac_agent.core.schemas import RoomState, UserRequest, PolicyConstraints
+from hvac_agent.core.controller import hvac_controller
 
 
 room = RoomState(

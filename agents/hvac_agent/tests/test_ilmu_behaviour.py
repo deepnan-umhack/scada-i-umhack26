@@ -1,7 +1,7 @@
 import asyncio
 
-from agents.hvac_agent.hvac_agent import hvac_agent
-from agents.hvac_agent.core.tools import resolve_room_id, get_optimizer_pause_status
+from hvac_agent.hvac_agent import hvac_agent
+from hvac_agent.core.tools import resolve_room_id, get_optimizer_pause_status
 
 
 ROOM_NAME = "Huddle Room 1"

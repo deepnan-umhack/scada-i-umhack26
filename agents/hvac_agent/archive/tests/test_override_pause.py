@@ -1,5 +1,5 @@
-from agents.hvac_agent.core.schemas import UserRequest
-from agents.hvac_agent.core.service import handle_hvac_request
+from hvac_agent.core.schemas import UserRequest
+from hvac_agent.core.service import handle_hvac_request
 
 print("=== Step 1: Manual override ===")
 override_request = UserRequest(

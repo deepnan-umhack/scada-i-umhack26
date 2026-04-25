@@ -7,10 +7,10 @@ from zoneinfo import ZoneInfo
 
 from langchain_core.tools import tool
 
-from agents.hvac_agent.core.schemas import UserRequest
-from agents.hvac_agent.core.service import handle_hvac_request
-from agents.hvac_agent.core.tools import resolve_room_id, save_pre_cooling_schedule, diagnose_sensor_health
-from agents.hvac_agent.utils.demo_logger import step
+from hvac_agent.core.schemas import UserRequest
+from hvac_agent.core.service import handle_hvac_request
+from hvac_agent.core.tools import resolve_room_id, save_pre_cooling_schedule, diagnose_sensor_health
+from hvac_agent.utils.demo_logger import step
 
 
 def _parse_target_time(target_time: str) -> datetime:

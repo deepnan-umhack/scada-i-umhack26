@@ -4,7 +4,7 @@ from typing import Any
 
 import asyncpg
 
-from agents.hvac_agent.config import POSTGRES_URL
+from hvac_agent.config import POSTGRES_URL
 
 
 def _database_url() -> str:

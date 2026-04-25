@@ -1,5 +1,5 @@
-from agents.hvac_agent.core.schemas import UserRequest
-from agents.hvac_agent.core.service import handle_hvac_request
+from hvac_agent.core.schemas import UserRequest
+from hvac_agent.core.service import handle_hvac_request
 
 
 def detect_intent(user_message: str) -> str:

@@ -1,4 +1,4 @@
-from agents.hvac_agent.core.schemas import BookingContext, PolicyConstraints
+from hvac_agent.core.schemas import BookingContext, PolicyConstraints
 
 
 def adapt_booking_data(raw_booking: dict) -> BookingContext:

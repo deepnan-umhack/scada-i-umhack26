@@ -109,7 +109,7 @@ if "asyncpg" not in sys.modules:
     sys.modules["asyncpg"] = asyncpg_stub
 
 
-from agents.hvac_agent.core import tools  # noqa: E402
+from hvac_agent.core import tools  # noqa: E402
 
 
 def assert_true(condition: bool, message: str):

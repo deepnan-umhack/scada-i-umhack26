@@ -4,7 +4,7 @@ import ssl
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
-from agents.hvac_agent.infra.postgres_client import execute, run
+from hvac_agent.infra.postgres_client import execute, run
 
 load_dotenv()
 

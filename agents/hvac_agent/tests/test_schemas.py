@@ -1,4 +1,4 @@
-from agents.hvac_agent.core.schemas import RoomState
+from hvac_agent.core.schemas import RoomState
 
 room = RoomState(
     room_id="Boardroom_A",

@@ -1,4 +1,4 @@
-from agents.hvac_agent.core.schemas import (
+from hvac_agent.core.schemas import (
     RoomState,
     UserRequest,
     PolicyConstraints,

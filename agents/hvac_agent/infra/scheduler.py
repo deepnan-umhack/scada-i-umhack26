@@ -1,9 +1,9 @@
 import time
 from datetime import datetime, timezone
 
-from agents.hvac_agent.core.schemas import UserRequest
-from agents.hvac_agent.core.service import handle_hvac_request
-from agents.hvac_agent.core.tools import (
+from hvac_agent.core.schemas import UserRequest
+from hvac_agent.core.service import handle_hvac_request
+from hvac_agent.core.tools import (
     get_due_pre_cooling_schedules,
     mark_pre_cooling_schedule_completed,
     resolve_room_name,

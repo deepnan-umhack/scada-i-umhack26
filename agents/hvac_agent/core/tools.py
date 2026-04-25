@@ -4,7 +4,7 @@ import threading
 from uuid import UUID
 from datetime import datetime, timedelta, timezone, date
 from typing import Any, Dict, Optional
-from agents.hvac_agent.utils.demo_logger import error
+from hvac_agent.utils.demo_logger import error
 
 from pathlib import Path
 from dotenv import load_dotenv
@@ -13,9 +13,9 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT_DIR / ".env")
 
 import paho.mqtt.client as mqtt
-from agents.hvac_agent.infra.postgres_client import fetch_one, fetch_rows, run
+from hvac_agent.infra.postgres_client import fetch_one, fetch_rows, run
 
-from agents.hvac_agent.core.schemas import (
+from hvac_agent.core.schemas import (
     OptimizerRequest,
     OptimizerResponse,
     PolicyConstraints,

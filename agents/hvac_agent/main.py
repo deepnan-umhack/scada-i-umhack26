@@ -1,5 +1,5 @@
 import asyncio
-from agents.hvac_agent.hvac_agent import hvac_agent
+from hvac_agent.hvac_agent import hvac_agent
 
 
 async def main():
