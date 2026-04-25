@@ -6,6 +6,7 @@ import iconInbox from '../assets/Inbox.svg';
 import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
 import { supabase } from '../lib/supabaseClient';
+import ReactMarkdown from 'react-markdown';
 
 interface MainChatProps {
   requirement: string;
@@ -322,7 +323,7 @@ const MainChat: React.FC<MainChatProps> = ({
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col px-5 md:px-10 overflow-hidden relative">
+<div className="flex-1 flex flex-col px-5 md:px-10 overflow-hidden relative">
           <div className="flex-1 overflow-y-auto no-scrollbar pt-4 flex flex-col">
             {messages.length === 0 ? (
               <div className="mt-4 md:mt-9 mb-auto w-full flex flex-col items-start md:items-center">
@@ -341,10 +342,18 @@ const MainChat: React.FC<MainChatProps> = ({
               <div className="w-full max-w-3xl mx-auto flex flex-col gap-5 pb-0 mt-auto">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-sm whitespace-pre-wrap ${
+                    <div className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-sm ${
                       msg.role === 'user' ? 'bg-[#1A1A1A] text-white rounded-br-none' : 'bg-white text-[#1A1A1A] border border-slate-200 rounded-bl-none'
                     }`}>
-                      {msg.text || (msg.role === 'user' && "Check these requirements:")}
+                      {msg.role === 'agent' ? (
+                        <div className="prose prose-sm max-w-none prose-slate">
+                          <ReactMarkdown>{msg.text}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap">
+                          {msg.text || "Check these requirements:"}
+                        </div>
+                      )}
                     </div>
                     {msg.role === 'user' && msg.tags && (
                       <div className="flex flex-wrap justify-end gap-2 mt-2 max-w-[85%]">
