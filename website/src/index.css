@@ -30,3 +30,19 @@ body {
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
+
+/* Removes extra spacing created by Markdown paragraphs inside chat bubbles */
+.prose p {
+  margin-bottom: 0.5rem;
+  margin-top: 0;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+/* Ensure bold text is clearly visible */
+.prose strong {
+  font-weight: 700;
+  color: inherit;
+}
