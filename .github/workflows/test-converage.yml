@@ -45,5 +45,5 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: ./website
-          json-summary-path: website/coverage/coverage-summary.json
-          json-final-path: website/coverage/coverage-final.json
+          json-summary-path: coverage/coverage-summary.json
+          json-final-path: coverage/coverage-final.json
