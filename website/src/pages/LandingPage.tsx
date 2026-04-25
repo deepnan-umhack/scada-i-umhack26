@@ -4,7 +4,7 @@ import logo from '../assets/Logo.svg';
 
 const LandingPage: React.FC = () => {
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-[#F0F4F8] p-4 overflow-hidden">
+    <div className="flex h-screen w-full flex-col items-center justify-start pt-[40vh] bg-[#F0F4F8] p-4 overflow-hidden">
       <div className="relative flex items-center justify-center">
         
         {/* Water Drop Effect */}
@@ -55,7 +55,7 @@ const LandingPage: React.FC = () => {
           <img 
             src={logo} 
             alt="DeepNaN Logo" 
-            className="h-20 w-auto md:h-35" 
+            className="h-20 w-auto" 
           />
         </motion.div>
       </div>
@@ -65,9 +65,8 @@ const LandingPage: React.FC = () => {
         initial={{ scale: 0.2, opacity: 0 }}
         animate={{ scale: [0.2, 1], opacity: [0, 0.15, 0] }}
         transition={{ duration: 0.9, ease: "linear" }}
-        className="absolute w-20 h-4 bg-black rounded-[100%] mt-40 blur-md"
+        className="absolute w-20 h-4 bg-black rounded-[100%] mt-20 blur-md"
       />
-
     </div>
   );
 };

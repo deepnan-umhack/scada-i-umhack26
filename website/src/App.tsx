@@ -12,8 +12,8 @@ import ProfileSettings from './pages/ProfileSettings';
 function App() {
   const [showLanding, setShowLanding] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
   const [activeView, setActiveView] = useState<'chat' | 'browse' | 'bookings' | 'catalog' | 'directory' | 'profile'>('chat');
+  const [draftMessage, setDraftMessage] = useState('');
   const [displayedSpace, setDisplayedSpace] = useState<string | null>(null);
   const [displayedEquipment, setDisplayedEquipment] = useState<string[]>([]);
   const [displayedDepts, setDisplayedDepts] = useState<string[]>([]);
@@ -44,9 +44,12 @@ function App() {
             </motion.div>
           ) : (
             <>
+              {/* MAIN CHAT VIEW */}
               {activeView === 'chat' && (
                 <motion.div key="chat" {...snappyVariants} className="h-full">
                   <MainChat 
+                    requirement={draftMessage}         // Persistent draft text
+                    onSetRequirement={setDraftMessage} // Setter for text
                     displayedSpace={displayedSpace}
                     onSetDisplayedSpace={setDisplayedSpace}
                     displayedEquipment={displayedEquipment}
@@ -62,13 +65,17 @@ function App() {
                 </motion.div>
               )}
 
+              {/* BROWSE SPACES VIEW */}
               {activeView === 'browse' && (
                 <motion.div key="browse" {...snappyVariants} className="h-full">
                   <BrowseSpaces 
                     onBack={() => setActiveView('chat')} 
+                    selectedSpace={displayedSpace} // For grayscale/already tagged logic
                     onSpaceSelected={(spaceName) => {
-                      setDisplayedSpace(spaceName);
-                      setActiveView('chat');
+                      if (displayedSpace !== spaceName) {
+                        setDisplayedSpace(spaceName);
+                        setActiveView('chat');
+                      }
                     }}
                     onOpenBookingStatus={() => setActiveView('bookings')}
                     onOpenProfileSettings={() => setActiveView('profile')}
@@ -76,12 +83,19 @@ function App() {
                 </motion.div>
               )}
 
+              {/* EQUIPMENT CATALOG VIEW */}
               {activeView === 'catalog' && (
                 <motion.div key="catalog" {...snappyVariants} className="h-full">
                   <EquipmentCatalog 
                     onBack={() => setActiveView('chat')} 
-                    onEquipmentSelected={(equipmentName) => {
-                      setDisplayedEquipment(prev => [...prev, equipmentName]);
+                    selectedEquipment={displayedEquipment} // For ADDED badge logic
+                    onEquipmentSelected={(equipmentWithQty) => {
+                      // Logic: Replace existing tag for same item if quantity is updated
+                      const baseName = equipmentWithQty.split(' (x')[0];
+                      setDisplayedEquipment(prev => {
+                        const filtered = prev.filter(item => !item.startsWith(baseName));
+                        return [...filtered, equipmentWithQty];
+                      });
                       setActiveView('chat');
                     }}
                     onOpenBookingStatus={() => setActiveView('bookings')}
@@ -90,12 +104,16 @@ function App() {
                 </motion.div>
               )}
 
+              {/* DEPARTMENT DIRECTORY VIEW */}
               {activeView === 'directory' && (
                 <motion.div key="directory" {...snappyVariants} className="h-full">
                   <DepartmentDirectory 
                     onBack={() => setActiveView('chat')} 
+                    selectedDepts={displayedDepts} // For "Already Tagged" logic
                     onDepartmentSelected={(deptName) => {
-                      setDisplayedDepts(prev => [...prev, deptName]);
+                      if (!displayedDepts.includes(deptName)) {
+                        setDisplayedDepts(prev => [...prev, deptName]);
+                      }
                       setActiveView('chat');
                     }}
                     onOpenBookingStatus={() => setActiveView('bookings')}
@@ -104,6 +122,7 @@ function App() {
                 </motion.div>
               )}
 
+              {/* BOOKING STATUS VIEW */}
               {activeView === 'bookings' && (
                 <motion.div key="bookings" {...snappyVariants} className="h-full">
                   <BookingStatus 
@@ -113,6 +132,7 @@ function App() {
                 </motion.div>
               )}
 
+              {/* PROFILE SETTINGS VIEW */}
               {activeView === 'profile' && (
                 <motion.div key="profile" {...snappyVariants} className="h-full">
                   <ProfileSettings 
@@ -121,6 +141,7 @@ function App() {
                     onLogout={() => {
                         setIsAuthenticated(false);
                         setActiveView('chat');
+                        setDraftMessage(''); // Reset draft on logout
                         setDisplayedEquipment([]);
                         setDisplayedDepts([]);
                         setDisplayedSpace(null);
@@ -148,7 +169,6 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

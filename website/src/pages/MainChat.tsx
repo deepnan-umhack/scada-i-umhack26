@@ -8,6 +8,8 @@ import iconSearch from '../assets/Search.svg';
 import { supabase } from '../lib/supabaseClient';
 
 interface MainChatProps {
+  requirement: string;
+  onSetRequirement: (val: string) => void;
   displayedSpace: string | null;
   onSetDisplayedSpace: (space: string | null) => void;
   displayedEquipment: string[];
@@ -32,6 +34,8 @@ interface Message {
 }
 
 const MainChat: React.FC<MainChatProps> = ({
+  requirement,
+  onSetRequirement,
   displayedSpace,
   onSetDisplayedSpace,
   displayedEquipment,
@@ -45,7 +49,6 @@ const MainChat: React.FC<MainChatProps> = ({
   onOpenProfileSettings
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [requirement, setRequirement] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -82,10 +85,10 @@ const MainChat: React.FC<MainChatProps> = ({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setRequirement(e.target.value);
+    onSetRequirement(e.target.value);
   };
 
   const handleSendMessage = async () => {
@@ -105,12 +108,15 @@ const MainChat: React.FC<MainChatProps> = ({
       tags: tagSnapshot
     }]);
 
-    setRequirement('');
+    onSetRequirement('');
     onSetDisplayedSpace(null);
     onSetDisplayedEquipment([]);
     onSetDisplayedDepts([]);
     setIsLoading(true);
 
+    // ===========================================================================================================
+    // AI API CALL (in case ai got problem change this to comment and uncomment the MANUAL TEST CODE block below)
+    // ===========================================================================================================
     let messageForAI = userText || "(User sent tags only)";
     const contextTags = [];
     if (tagSnapshot.space) contextTags.push(`Space: ${tagSnapshot.space}`);
@@ -121,12 +127,12 @@ const MainChat: React.FC<MainChatProps> = ({
       messageForAI = `${messageForAI}\n\n(System Note: User UI tags: ${contextTags.join(' | ')})`;
     }
 
-    try {
+try {
       const payloadToSend = {
         message: messageForAI,
         thread_id: threadId,
         user_id: user?.id || "user_01",
-        user_name: user?.user_metadata?.full_name || "Ally"
+        user_name: user?.user_metadata?.full_name
       };
 
       const response = await fetch("https://scada-i-umhack26.onrender.com/chat", {
@@ -135,15 +141,42 @@ const MainChat: React.FC<MainChatProps> = ({
         body: JSON.stringify(payloadToSend),
       });
 
+      if (!response.ok) {
+        throw new Error("Server error");
+      }
+
       const data = await response.json();
       if (data.reply) {
         setMessages(prev => [...prev, { role: 'agent', text: data.reply }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'agent', 
+          text: "The server connected but didn't provide a reply. Please try again." 
+        }]);
       }
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'agent', text: "Connection failed. Please try again." }]);
+      setMessages(prev => [...prev, { 
+        role: 'agent', 
+        text: "Connection failed. Please check your internet or try again later." 
+      }]);
     } finally {
       setIsLoading(false);
     }
+    
+
+    // ==========================================
+    // MANUAL TEST CODE (Simulating AI Reply)
+    // ==========================================
+    /*
+    setTimeout(() => {
+      setMessages(prev => [...prev, { 
+        role: 'agent', 
+        text: "I have checked the availability for your requested date. Unfortunately, the main hall is currently undergoing maintenance. However, I can offer you Bilik Ilmuan 1 or the Seminar Room as alternatives. \n\nBoth spaces are fully equipped with high-speed Wi-Fi, premium sound systems, and enough seating for up to 50 participants. Please let me know if you would like me to lock in these dates for you, or if you need to add more equipment like microphones or extra flip charts to your list. Our team is ready to assist you in making your event a success!" 
+      }]);
+      setIsLoading(false);
+    }, 1500); 
+    */
+    // ==========================================
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -154,7 +187,7 @@ const MainChat: React.FC<MainChatProps> = ({
   };
 
   const handleNewChat = () => {
-    setRequirement('');
+    onSetRequirement('');
     setMessages([]);
     onSetDisplayedSpace(null);
     onSetDisplayedEquipment([]);
@@ -233,7 +266,10 @@ const MainChat: React.FC<MainChatProps> = ({
               >
                 <img src={iconMenu} alt="Menu" className="h-5 w-auto" />
               </button>
-              <img src={logo} alt="DeepNaN" className="h-6 w-auto" />
+              
+              <button onClick={handleNewChat} className="hover:opacity-70 transition">
+                <img src={logo} alt="DeepNaN" className="h-6 w-auto" />
+              </button>
             </div>
             <button onClick={onOpenBookingStatus} className="bg-white px-5 py-2 rounded-full shadow-sm font-bold uppercase tracking-widest text-[11px] text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-cyan-400">
               Bookings
@@ -245,20 +281,20 @@ const MainChat: React.FC<MainChatProps> = ({
           
           <div className="flex-1 overflow-y-auto no-scrollbar pt-4 flex flex-col">
             {messages.length === 0 ? (
-              <div className="my-auto w-full flex flex-col items-start md:items-center">
+              <div className="mt-4 md:mt-9 mb-auto w-full flex flex-col items-start md:items-center">
                 <div className="w-full text-left md:text-center">
-                  <h2 className="text-2xl md:text-4xl text-slate-900 font-light">Hey {user?.user_metadata?.full_name || 'Ally'}</h2>
-                  <h1 className="text-4xl md:text-5xl font-bold mt-1 text-slate-900 leading-tight">Planning an event?</h1>
+                  <h2 className="text-2xl md:text-4xl text-slate-900 font-light">Hey {user?.user_metadata?.full_name}</h2>
+                  <h1 className="text-4xl md:-mt-1 md:text-5xl font-bold text-slate-900 leading-tight">Planning an event?</h1>
                   <p className="text-slate-500 mt-1 text-sm md:text-base font-medium">We'll sort out the perfect space & equipment.</p>
                 </div>
-                <div className="flex flex-col md:flex-row justify-start md:justify-center items-start md:items-center gap-4 md:gap-3 mt-10 w-full">
+                <div className="flex flex-col md:flex-row justify-start md:justify-center items-start md:items-center gap-4 md:gap-3 mt-7 w-full">
                   <button onClick={onOpenBrowseSpaces} className="px-10 py-3 bg-[#D4F7F2] hover:bg-[#bcf0e9] rounded-[20px] md:rounded-full text-[14px] font-medium shadow-sm active:scale-95 whitespace-nowrap">Browse Spaces</button>
                   <button onClick={onOpenEquipmentCatalog} className="px-10 py-3 bg-[#D6EAFB] hover:bg-[#c1e0f9] rounded-[20px] md:rounded-full text-[14px] font-medium shadow-sm active:scale-95 whitespace-nowrap">Equipment Catalog</button>
                   <button onClick={onOpenDepartmentDirectory} className="px-10 py-3 bg-[#D7DCFF] hover:bg-[#c2c9ff] rounded-[20px] md:rounded-full text-[14px] font-medium shadow-sm active:scale-95 whitespace-nowrap">Department Directory</button>
                 </div>
               </div>
             ) : (
-              <div className="w-full max-w-3xl mx-auto flex flex-col gap-6 pb-4 mt-auto">
+              <div className="w-full max-w-3xl mx-auto flex flex-col gap-5 pb-0 mt-auto">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                     <div className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-sm whitespace-pre-wrap ${
@@ -300,11 +336,11 @@ const MainChat: React.FC<MainChatProps> = ({
             )}
           </div>
 
-          <div className="w-full max-w-2xl mx-auto mt-4 mb-4 shrink-0">
+          <div className="w-full max-w-2xl mx-auto mt-2 mb-4 shrink-0">
             {requirement === '' && messages.length === 0 && (
-              <div className="flex flex-row justify-start md:justify-center gap-2 mb-5 overflow-x-auto no-scrollbar pb-1">
+              <div className="flex flex-row justify-start md:justify-center gap-2 mb-2 overflow-x-auto no-scrollbar pb-1">
                 {['Book room', 'Book equipment', 'Find the contact','Operating time','View history'].map(label => (
-                  <button key={label} onClick={() => setRequirement(label)} className="text-[13px] border border-slate-300 px-5 py-2 rounded-2xl bg-white/50 hover:bg-white text-center transition-all whitespace-nowrap active:scale-95 font-medium text-slate-600 shadow-xs">
+                  <button key={label} onClick={() => onSetRequirement(label)} className="text-[13px] border border-slate-300 px-5 py-2 rounded-2xl bg-white/50 hover:bg-white text-center transition-all whitespace-nowrap active:scale-95 font-medium text-slate-600 shadow-xs">
                     {label}
                   </button>
                 ))}
@@ -314,7 +350,7 @@ const MainChat: React.FC<MainChatProps> = ({
             <div className="bg-white rounded-[28px] md:rounded-4xl px-6 py-2.5 md:py-3.5 border border-white focus-within:border-slate-200 transition-all shadow-lg flex items-center relative overflow-hidden">
               <div className="flex flex-col w-full py-2">
                 
-                <div className="flex flex-wrap gap-2 items-center mb-3 max-h-32 overflow-y-auto no-scrollbar">
+                <div className="flex flex-wrap gap-2 items-center mb-1 max-h-20 overflow-y-auto custom-scrollbar pr-1">
                   {displayedSpace ? (
                     <div className="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full border border-green-200 text-xs font-medium text-green-700 animate-in zoom-in-95 duration-200">
                       <span>space: <span className="font-semibold">{displayedSpace}</span></span>

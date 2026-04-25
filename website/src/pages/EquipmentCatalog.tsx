@@ -20,13 +20,15 @@ interface EquipmentCatalogProps {
   onEquipmentSelected: (equipmentName: string) => void;
   onOpenBookingStatus: () => void;
   onOpenProfileSettings: () => void;
+  selectedEquipment: string[];
 }
 
 const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({ 
   onBack, 
   onEquipmentSelected, 
   onOpenBookingStatus, 
-  onOpenProfileSettings 
+  onOpenProfileSettings,
+  selectedEquipment
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<{name: string, id: number} | null>(null);
@@ -62,10 +64,16 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({
     { id: 8, name: "Chair", img: Chair },
   ];
 
+  const getTaggedQuantity = (name: string) => {
+    const found = selectedEquipment.find(item => item.startsWith(name));
+    if (!found) return null;
+    const match = found.match(/\(x(\d+)\)/);
+    return match ? match[1] : null;
+  };
+
   return (
     <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden relative">
       
-      {/* Mobile Snackbar Tip */}
       <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-100 transition-all duration-500 ease-in-out px-6 w-full max-w-xs md:hidden ${
         showToast ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
       }`}>
@@ -79,7 +87,6 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({
         <div className="fixed inset-0 bg-black/5 z-70 md:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      {/* Navigation Sidebar */}
       <aside className={`
         fixed inset-y-0 left-0 z-80 w-72 bg-[#E9EEF6] border-r border-gray-100
         transition-transform duration-300 ease-in-out flex flex-col rounded-r-[2.5rem] md:rounded-none
@@ -118,17 +125,13 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({
       </aside>
 
       <main className="flex-1 flex flex-col relative min-w-0 h-full">
-
-        {/* Header */}
         <header className="sticky top-0 z-50 bg-[#F0F4F8] shrink-0">
           <div className="flex items-center justify-between px-4 md:px-10 py-3">
             <div className="flex items-center gap-4">
               <button
                 onClick={toggleSidebar}
                 className={`p-2 hover:bg-gray-200/50 rounded-lg transition-all duration-300 active:scale-90 ${
-                  isSidebarOpen
-                    ? 'md:opacity-100 md:scale-100 opacity-0 scale-0 pointer-events-none md:pointer-events-auto'
-                    : 'opacity-100 scale-100'
+                  isSidebarOpen ? 'md:opacity-100 md:scale-100 opacity-0 scale-0 pointer-events-none md:pointer-events-auto' : 'opacity-100 scale-100'
                 }`}
               >
                 <img src={iconMenu} alt="Menu" className="h-5 w-auto" />
@@ -143,7 +146,6 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({
           </div>
         </header>
 
-        {/* Catalog Content Area */}
         <div className="flex-1 overflow-y-auto no-scrollbar touch-pan-y px-4 md:px-10">
           <div className="sticky -top-px z-40 bg-[#F0F4F8] pt-2 pb-4 -mx-4 px-4 -mt-1 flex items-center justify-between gap-4">
               <div className="flex flex-col">
@@ -153,17 +155,13 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({
 
               <div className="flex items-center gap-3 shrink-0">
                 <div className="group relative flex items-center justify-end">
-                    <button 
-                      onClick={() => setShowToast(true)}
-                      className="flex items-center gap-2.5 bg-white border border-slate-200 h-9 px-3 rounded-full shadow-xs transition-all duration-500 ease-out max-w-10.5 md:group-hover:max-w-75 overflow-hidden whitespace-nowrap active:scale-95"
-                    >
+                    <button onClick={() => setShowToast(true)} className="flex items-center gap-2.5 bg-white border border-slate-200 h-9 px-3 rounded-full shadow-xs transition-all duration-500 ease-out max-w-10.5 md:group-hover:max-w-75 overflow-hidden whitespace-nowrap active:scale-95">
                         <img src={iconInfo} alt="Info" className="h-4 w-4 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity" />
                         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 hidden md:inline">
                             Tap card to tag to chat
                         </span>
                     </button>
                 </div>
-
                 <button onClick={onBack} className="p-1.5 bg-white shadow-sm border border-slate-100 hover:bg-slate-50 rounded-full transition-all active:scale-90 group shrink-0 h-9 w-9 flex items-center justify-center">
                   <span className="text-lg text-slate-700 group-hover:text-slate-600 transition-colors block leading-none">✕</span>
                 </button>
@@ -172,28 +170,38 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({
             
           <div className="pb-24 mt-2">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 md:gap-x-8 gap-y-8 md:gap-y-12 w-full">
-              {equipment.map((item) => (
-                <div 
-                  key={item.id} 
-                  onClick={() => setSelectedItem(item)} 
-                  className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
-                >
-                  <div className="relative w-full aspect-4/3 overflow-hidden rounded-3xl md:rounded-4xl shadow-sm border border-slate-200/50 bg-white">
-                    <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
-                    <div className="absolute inset-0 bg-linear-to-t from-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              {equipment.map((item) => {
+                const taggedQty = getTaggedQuantity(item.name);
+                return (
+                  <div 
+                    key={item.id} 
+                    onClick={() => setSelectedItem(item)} 
+                    className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform relative"
+                  >
+                    <div className="relative w-full aspect-4/3 overflow-hidden rounded-3xl md:rounded-4xl shadow-sm border border-slate-200/50 bg-white">
+                      <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
+                      
+                      {/* Tagged Badge */}
+                      {taggedQty && (
+                        <div className="absolute top-3 right-3 bg-blue-600 text-white text-[9px] font-bold px-2 py-1 rounded-full shadow-lg border border-blue-400 animate-in zoom-in-50 duration-300">
+                          ADDED: x{taggedQty}
+                        </div>
+                      )}
+
+                      <div className="absolute inset-0 bg-linear-to-t from-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    </div>
+                    <div className="mt-3 md:mt-4 px-1 text-center">
+                      <span className={`text-[13px] md:text-[15px] font-medium leading-snug block group-hover:text-blue-600 transition-colors ${taggedQty ? 'text-blue-700 font-bold' : 'text-slate-800'}`}>
+                        {item.name}
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-3 md:mt-4 px-1 text-center">
-                    <span className="text-[13px] md:text-[15px] font-medium text-slate-800 leading-snug block group-hover:text-blue-600 transition-colors">
-                      {item.name}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* Quantity Overlay */}
         {selectedItem && (
           <div className="fixed inset-0 z-110 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm">
             <div className="bg-white rounded-4xl p-8 w-full max-w-xs shadow-xl border border-white animate-in zoom-in-95 duration-200">
@@ -217,7 +225,7 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({
                   onClick={handleConfirmQuantity}
                   className="w-full py-4 bg-blue-800 text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest active:scale-95 transition-all shadow-lg"
                 >
-                  Add to Chat
+                  {getTaggedQuantity(selectedItem.name) ? 'Update Tag' : 'Add to Chat'}
                 </button>
                 <button 
                   onClick={() => {setSelectedItem(null); setQuantity(1);}}
@@ -229,7 +237,6 @@ const EquipmentCatalog: React.FC<EquipmentCatalogProps> = ({
             </div>
           </div>
         )}
-        {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
       </main>
     </div>
   );

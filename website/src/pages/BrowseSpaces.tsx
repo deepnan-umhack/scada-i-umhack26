@@ -23,9 +23,16 @@ interface BrowseSpacesProps {
   onSpaceSelected: (spaceName: string) => void;
   onOpenBookingStatus: () => void;
   onOpenProfileSettings: () => void;
+  selectedSpace: string | null;
 }
 
-const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onSpaceSelected, onOpenBookingStatus, onOpenProfileSettings }) => {
+const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ 
+  onBack, 
+  onSpaceSelected, 
+  onOpenBookingStatus, 
+  onOpenProfileSettings,
+  selectedSpace 
+}) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
@@ -37,7 +44,11 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onSpaceSelected, on
   };
 
   const handleSpaceClick = (spaceName: string) => {
-    onSpaceSelected(spaceName);
+    if (selectedSpace !== spaceName) {
+      onSpaceSelected(spaceName);
+    } else {
+      setShowToast(true);
+    }
   };
 
   useEffect(() => {
@@ -70,7 +81,9 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onSpaceSelected, on
       }`}>
         <div className="bg-slate-800 text-white py-3 px-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700">
           <img src={iconInfo} className="h-4 w-4 invert opacity-80" alt="info" />
-          <p className="text-[12px] font-medium tracking-wide">Tap any card to tag it to your chat</p>
+          <p className="text-[12px] font-medium tracking-wide">
+            {selectedSpace ? "Space already tagged!" : "Tap any card to tag it to your chat"}
+          </p>
         </div>
       </div>
 
@@ -151,7 +164,6 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onSpaceSelected, on
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
-                {/* Info Button with Hover/Tap logic */}
                 <div className="group relative flex items-center justify-end">
                     <button 
                       onClick={() => setShowToast(true)}
@@ -172,22 +184,49 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ onBack, onSpaceSelected, on
             
           <div className="pb-24 mt-2">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 md:gap-x-8 gap-y-8 md:gap-y-12 w-full">
-              {spaces.map((space) => (
-                <div key={space.id} onClick={() => handleSpaceClick(space.name)} className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform">
-                  <div className="relative w-full aspect-4/3 overflow-hidden rounded-3xl md:rounded-4xl shadow-sm border border-slate-200/50 bg-slate-100">
-                    <img src={space.img} alt={space.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
-                    <div className="absolute inset-0 bg-linear-to-t from-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              {spaces.map((space) => {
+                const isChosen = selectedSpace === space.name;
+                
+                return (
+                  <div 
+                    key={space.id} 
+                    onClick={() => handleSpaceClick(space.name)} 
+                    className={`flex flex-col items-center group transition-all ${
+                      isChosen ? 'opacity-60 cursor-default' : 'cursor-pointer active:scale-95'
+                    }`}
+                  >
+                    <div className="relative w-full aspect-4/3 overflow-hidden rounded-3xl md:rounded-4xl shadow-sm border border-slate-200/50 bg-slate-100">
+                      <img 
+                        src={space.img} 
+                        alt={space.name} 
+                        className={`w-full h-full object-cover transition-transform duration-700 ease-out ${
+                          isChosen ? 'grayscale' : 'group-hover:scale-110'
+                        }`} 
+                      />
+                      
+                      {/* Chosen Overlay Badge */}
+                      {isChosen && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/10 backdrop-blur-[1px]">
+                          <span className="bg-white/90 text-slate-900 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest shadow-sm border border-slate-200">
+                            Already Tagged
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div className="absolute inset-0 bg-linear-to-t from-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    </div>
+                    <div className="mt-3 md:mt-4 px-1">
+                      <span className={`text-[13px] md:text-[15px] font-medium text-center leading-snug block transition-colors ${
+                        isChosen ? 'text-slate-400' : 'text-slate-800 group-hover:text-blue-600'
+                      }`}>
+                        {space.name}
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-3 md:mt-4 px-1">
-                    <span className="text-[13px] md:text-[15px] font-medium text-center text-slate-800 leading-snug block group-hover:text-blue-600 transition-colors">
-                      {space.name}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
-          {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
         </div>
       </main>
     </div>

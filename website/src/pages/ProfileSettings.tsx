@@ -192,7 +192,6 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
                       </div>
                     </div>
                   </div>
-                  {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
                 </div>
               </div>
             </div>

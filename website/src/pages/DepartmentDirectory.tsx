@@ -12,13 +12,15 @@ interface DirectoryProps {
   onDepartmentSelected: (deptName: string) => void; 
   onOpenBookingStatus: () => void;
   onOpenProfileSettings: () => void;
+  selectedDepts: string[]; 
 }
 
 const DepartmentDirectory: React.FC<DirectoryProps> = ({ 
   onBack, 
   onDepartmentSelected, 
   onOpenBookingStatus, 
-  onOpenProfileSettings 
+  onOpenProfileSettings,
+  selectedDepts 
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -32,7 +34,11 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
   };
 
   const handleSelect = (name: string) => {
-    onDepartmentSelected(name);
+    if (!selectedDepts.includes(name)) {
+      onDepartmentSelected(name);
+    } else {
+      setShowToast(true);
+    }
   };
 
   useEffect(() => {
@@ -73,7 +79,10 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
       }`}>
         <div className="bg-slate-800 text-white py-3 px-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700">
           <img src={iconInfo} className="h-4 w-4 invert opacity-80" alt="info" />
-          <p className="text-[12px] font-medium tracking-wide">Tap any card to tag it to your chat</p>
+          <p className="text-[12px] font-medium tracking-wide">
+            {/* Dynamic message */}
+            {selectedDepts.length > 0 ? "Department already tagged!" : "Tap any card to tag it to your chat"}
+          </p>
         </div>
       </div>
 
@@ -188,37 +197,56 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
           </div>
 
           <div className="space-y-4 pb-24 mt-2">
-            {filteredDepts.map((dept, index) => (
-              <div 
-                key={index} 
-                onClick={() => handleSelect(dept)} 
-                className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100/50 hover:shadow-md transition-all group active:scale-[0.99] cursor-pointer"
-              >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-slate-800 text-[17px] md:text-[18px] group-hover:text-blue-600 transition-colors leading-tight">{dept}</h3>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Office Open</span>
+            {filteredDepts.map((dept, index) => {
+              const isChosen = selectedDepts.includes(dept);
+              
+              return (
+                <div 
+                  key={index} 
+                  onClick={() => !isChosen && handleSelect(dept)} 
+                  className={`bg-white rounded-[2.5rem] p-6 shadow-sm border transition-all group active:scale-[0.99] relative overflow-hidden ${
+                    isChosen 
+                    ? 'border-blue-100 opacity-60 cursor-default' 
+                    : 'border-slate-100/50 hover:shadow-md cursor-pointer'
+                  }`}
+                >
+                  {/* Chosen Badge Overlay */}
+                  {isChosen && (
+                    <div className="absolute top-4 right-8 bg-blue-50 text-blue-600 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-blue-100">
+                      Already Tagged
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-10 gap-y-4 border-t lg:border-t-0 lg:border-l border-slate-100 pt-5 lg:pt-0 lg:pl-10 text-[13px] text-slate-600 font-medium">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Contact</span>
-                      <span>+607-553 3333</span>
+                  )}
+
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div className="flex-1">
+                      <h3 className={`font-bold text-[17px] md:text-[18px] transition-colors leading-tight ${
+                        isChosen ? 'text-slate-400' : 'text-slate-800 group-hover:text-blue-600'
+                      }`}>
+                        {dept}
+                      </h3>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <span className={`w-2 h-2 rounded-full ${isChosen ? 'bg-slate-300' : 'bg-emerald-500'}`}></span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Office Open</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Email</span>
-                      <span className="italic">office@utm.my</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Hours</span>
-                      <span className="whitespace-nowrap">8:00 AM - 5:00 PM</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-10 gap-y-4 border-t lg:border-t-0 lg:border-l border-slate-100 pt-5 lg:pt-0 lg:pl-10 text-[13px] text-slate-600 font-medium">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Contact</span>
+                        <span>+607-553 3333</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Email</span>
+                        <span className="italic">office@utm.my</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1">Hours</span>
+                        <span className="whitespace-nowrap">8:00 AM - 5:00 PM</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {filteredDepts.length === 0 && (
               <div className="text-center py-24">
@@ -227,7 +255,6 @@ const DepartmentDirectory: React.FC<DirectoryProps> = ({
               </div>
             )}
           </div>
-          {/* Disclaimer: DeepNaN is AI and can make mistakes. */}  
         </div>
       </main>
     </div>
