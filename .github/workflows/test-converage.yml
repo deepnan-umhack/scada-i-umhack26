@@ -1,11 +1,12 @@
 name: Test Coverage
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
-      - master
-      - develop
 
 jobs:
   coverage:
