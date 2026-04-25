@@ -1,15 +1,72 @@
-.DS_Store
-.env
-/.env.local
-/.env.*
-venv/
-env/
-__pycache__/
+# Byte-compiled / optimized / DLL files
+
+**pycache**/
 *.py[cod]
-.pytest_cache/
+*$py.class
+
+# C extensions
+
+*.so
+
+# Distribution / packaging
+
+.Python
 build/
 dist/
-node_modules/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+
+.venv/
+venv/
+env/
+ENV/
+
+# uv-specific
+
+uv.lock  # Optional: remove this line if you want to commit lockfile
+
+# Environment variables
+
+.env
+.env.*
+!.env.example
+
+# Logs
+
+*.log
+
+# Unit test / coverage reports
+
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+pytest_cache/
+
+# Type checkers
+
+.mypy_cache/
+.pytype/
+
+# Jupyter Notebook
+
+.ipynb_checkpoints
+
+# IDEs and editors
+
 .vscode/
 .idea/
 coverage/
@@ -22,3 +79,10 @@ coverage/
 
 # Netlify / Deno generated files
 deno.lock
+
+node_modules/
+.venv/
+.env
+dist/
+build/
+*.log
