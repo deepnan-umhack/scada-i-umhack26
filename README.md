@@ -7,6 +7,8 @@
 
 * **Web Dashboard:** [https://scada-i.netlify.app/dashboard](https://scada-i.netlify.app/dashboard)
 * **Mobile Application:** [https://deep-nan.netlify.app/](https://deep-nan.netlify.app/)
+* **Pitching Video:** [https://drive.google.com/file/d/1G7RDlWFsJaeuXnGnsksEjZ9VekYneYTb/view?usp=sharing]
+* [![Watch the video](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSL5889I4xbYHYIhojub_CI6C25S_-QLM775g&s)]([https://drive.google.com/file/d/YOUR_FILE_ID/view](https://drive.google.com/file/d/1G7RDlWFsJaeuXnGnsksEjZ9VekYneYTb/view?usp=sharing))
 
 An AI-powered, multi-agent control system for smart buildings. SCADA-i combines rule-based control, MQTT-based IoT device communication, a React web dashboard, a mobile application, and a LangGraph-powered multi-agent system for intelligent decision-making, booking management, and ESG (Environmental, Social, and Governance) compliance.
 
