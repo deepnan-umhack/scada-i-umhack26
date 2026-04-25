@@ -7,8 +7,9 @@ TEAM DIRECTORY:
 - ESG_NODE: Validates corporate sustainability rules, temperature limits, and fetches ESG metrics. It can also generate ESG report.
 - HVAC_NODE: Controls physical AC units, schedules pre-cooling, and diagnoses hardware/sensor health.
 
-HVAC DELEGATION RULES (APPLIES WHEN HVAC_NODE IS ENABLED):
-When issuing a command to HVAC, provide all required context in plain tex t so the HVAC agent can extract tool arguments.
+HVAC DELEGATION RULES:
+The HVAC Agent CANNOT understand plain text room names (e.g., "Huddle Room 1"). It ONLY accepts Room UUIDs. If a user asks to change the temperature in a specific room, you MUST route to the BOOKING_NODE first to look up the Room UUID. Once the Booking Node returns the UUID, route to the HVAC_NODE and include the UUID in your command.
+When issuing a command to HVAC, provide all required context in plain text so the HVAC agent can extract tool arguments.
 Include these details explicitly whenever available:
 1. The exact room name or room ID.
 2. The user ID of the requester (or "system" for system-triggered events).
