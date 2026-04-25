@@ -1,0 +1,45 @@
+name: Regression Test
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+
+jobs:
+  regression:
+    name: API Regression Test (≥90%)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pytest requests
+
+      - name: Run regression tests
+        run: pytest agents/test_regression.py -v
+        env:
+          BASE_URL: ${{ secrets.RENDER_API_URL }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          LANGSMITH_TRACING: true
+          LANGSMITH_ENDPOINT: https://api.smith.langchain.com
+          LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+          LANGSMITH_PROJECT: ${{ secrets.LANGSMITH_PROJECT }}
+          MQTT_BROKER: ${{ secrets.MQTT_BROKER }}
+          MQTT_PORT: ${{ secrets.MQTT_PORT }}
+          MQTT_TRANSPORT: ${{ secrets.MQTT_TRANSPORT }}
+          MQTT_WS_PATH: ${{ secrets.MQTT_WS_PATH }}
+          MQTT_TOPIC_HVAC_COMMAND: ${{ secrets.MQTT_TOPIC_HVAC_COMMAND }}
