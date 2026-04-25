@@ -1,0 +1,15 @@
+[build]
+  # This tells Netlify to change into your React folder before doing anything
+  base = "dashboard/scada-i-react"
+  
+  # The command to compile Vite
+  command = "npm run build"
+  
+  # Because we set the base above, this correctly points to dashboard/scada-i-react/dist
+  publish = "dist"
+
+# This block fixes the React Router 404 issue (Single Page App routing)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
