@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { 
   FileText, Calendar, Download, Plus, X, CheckCircle2, ChevronRight, ChevronLeft, Search 
@@ -28,9 +28,98 @@ type ESGReport = {
   report_pdf_url: string;
 };
 
+// --- Scroll Wheel Picker Component ---
+const ScrollWheelPicker = ({ values, selected, onChange, label }: { values: string[]; selected: string; onChange: (v: string) => void; label: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const ITEM_H = 36;
+  const isUserScroll = useRef(true);
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scrollToValue = useCallback((val: string, smooth = false) => {
+    const idx = values.indexOf(val);
+    if (idx >= 0 && containerRef.current) {
+      isUserScroll.current = false;
+      containerRef.current.scrollTo({ top: idx * ITEM_H, behavior: smooth ? 'smooth' : 'auto' });
+      setTimeout(() => { isUserScroll.current = true; }, 100);
+    }
+  }, [values]);
+
+  useEffect(() => {
+    scrollToValue(selected);
+  }, [selected, scrollToValue]);
+
+  const handleScroll = () => {
+    if (!isUserScroll.current) return;
+    if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      if (!containerRef.current) return;
+      const idx = Math.round(containerRef.current.scrollTop / ITEM_H);
+      const clamped = Math.max(0, Math.min(idx, values.length - 1));
+      if (values[clamped] !== selected) {
+        onChange(values[clamped]);
+      }
+    }, 80);
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1.5">{label}</span>
+      <div className="relative h-[108px] w-14 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+        <div className="absolute inset-x-0 top-0 h-[36px] bg-gradient-to-b from-gray-50 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-[36px] bg-gradient-to-t from-gray-50 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-x-1 top-[36px] h-[36px] border border-indigo-200 bg-indigo-50/50 rounded-md z-[5] pointer-events-none" />
+        <div
+          ref={containerRef}
+          onScroll={handleScroll}
+          className="h-full overflow-y-auto scroll-smooth [&::-webkit-scrollbar]:hidden"
+          style={{ scrollSnapType: 'y mandatory' }}
+        >
+          <div style={{ height: ITEM_H }} />
+          {values.map((v) => (
+            <div
+              key={v}
+              style={{ height: ITEM_H, scrollSnapAlign: 'center' }}
+              className={`flex items-center justify-center text-sm font-semibold transition-colors cursor-pointer ${
+                v === selected ? 'text-indigo-700' : 'text-gray-400'
+              }`}
+              onClick={() => { onChange(v); scrollToValue(v, true); }}
+            >
+              {v}
+            </div>
+          ))}
+          <div style={{ height: ITEM_H }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function EsgReports() {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState(0);
+  const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'success'>('idle');
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [startDate, setStartDate] = useState("2026-01-01");
+  const [startHour, setStartHour] = useState("12");
+  const [startMinute, setStartMinute] = useState("00");
+  const [startAmpm, setStartAmpm] = useState("AM");
+  const [specifyStartTime, setSpecifyStartTime] = useState(false);
+  const [endDate, setEndDate] = useState("2026-01-01");
+  const [endHour, setEndHour] = useState("11");
+  const [endMinute, setEndMinute] = useState("59");
+  const [endAmpm, setEndAmpm] = useState("PM");
+  const [specifyEndTime, setSpecifyEndTime] = useState(false);
+
+  const hours12 = Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0'));
+  const minuteVals = Array.from({length: 60}, (_, i) => String(i).padStart(2, '0'));
+  const ampmVals = ['AM', 'PM'];
+
+  const formatDateTime = (date: string, hour: string, minute: string, ampm: string) => {
+    const [y, m, d] = date.split('-');
+    let h24 = parseInt(hour);
+    if (ampm === 'AM' && h24 === 12) h24 = 0;
+    else if (ampm === 'PM' && h24 !== 12) h24 += 12;
+    return `${parseInt(m)}/${parseInt(d)}/${y} ${String(h24).padStart(2,'0')}:${minute}`;
+  };
   
   const [dbReports, setDbReports] = useState<ESGReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,30 +159,35 @@ export default function EsgReports() {
     fetchReports();
   }, []);
 
-  // Simulate report generation process
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isGenerating && generationProgress < 100) {
-      interval = setInterval(() => {
-        setGenerationProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setTimeout(() => {
-              setIsGenerating(false);
-              setGenerationProgress(0);
-            }, 1000);
-            return 100;
-          }
-          return prev + Math.floor(Math.random() * 15) + 5;
-        });
-      }, 500);
-    }
-    return () => clearInterval(interval);
-  }, [isGenerating, generationProgress]);
+
 
   const handleGenerateReport = () => {
-    setIsGenerating(true);
-    setGenerationProgress(0);
+    setIsModalOpen(true);
+  };
+
+  const submitGenerateReport = async () => {
+    setIsModalOpen(false);
+    setGenerationState('generating');
+
+    try {
+      const response = await fetch("https://scada-i-umhack26.onrender.com/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Generate ESG Report from ${specifyStartTime ? formatDateTime(startDate, startHour, startMinute, startAmpm) : formatDateTime(startDate, '12', '00', 'AM')} to ${specifyEndTime ? formatDateTime(endDate, endHour, endMinute, endAmpm) : formatDateTime(endDate, '11', '59', 'PM')}`,
+          thread_id: "render_test_01",
+          user_id: "admin_001"
+        })
+      });
+      
+      const data = await response.json();
+      console.log("Report Generation Output:", data);
+      
+      setGenerationState('success');
+    } catch (err) {
+      console.error("Failed to trigger report generation:", err);
+      setGenerationState('idle');
+    }
   };
 
   const filteredReports = dbReports.filter((report) => 
@@ -129,6 +223,35 @@ export default function EsgReports() {
         </div>
       </div>
 
+      {generationState !== 'idle' && (
+        <div className={`border rounded-xl p-4 flex justify-between items-center animate-in fade-in slide-in-from-top-2 shadow-sm ${generationState === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200'}`}>
+          <div className="flex items-center gap-4">
+            <div className="flex justify-center items-center h-8 w-8 shrink-0">
+              {generationState === 'generating' ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+              ) : (
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              )}
+            </div>
+            <div>
+              <h3 className={`text-sm font-semibold ${generationState === 'success' ? 'text-emerald-900' : 'text-indigo-900'}`}>
+                {generationState === 'success' ? 'Report Generated Successfully' : 'Generating ESG Report...'}
+              </h3>
+              <p className={`text-xs mt-0.5 ${generationState === 'success' ? 'text-emerald-700/80' : 'text-indigo-700/80'}`}>
+                {generationState === 'success' 
+                  ? 'Your report has been successfully processed.' 
+                  : 'This will take awhile. Feel free to preview your other reports while waiting.'}
+              </p>
+            </div>
+          </div>
+          {generationState === 'success' && (
+            <button onClick={() => setGenerationState('idle')} className="p-2 text-emerald-600 hover:bg-emerald-100 rounded-md transition-colors" title="Dismiss">
+              <X size={18} />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Main Content: Report Archive List */}
       <div className="flex-1 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col overflow-hidden relative">
         <div className="p-4 lg:px-6 lg:py-4 border-b border-gray-200 flex flex-col md:flex-row md:justify-between md:items-center bg-gray-50/50 gap-4">
@@ -140,7 +263,8 @@ export default function EsgReports() {
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
             <button 
               onClick={handleGenerateReport}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-md transition-all shadow-sm active:scale-95 shrink-0"
+              disabled={generationState === 'generating'}
+              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-all shadow-sm shrink-0 ${generationState === 'generating' ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-gray-900 hover:bg-gray-800 text-white active:scale-95'}`}
             >
               <Plus size={16} strokeWidth={2.5} />
               Generate New Report
@@ -226,42 +350,6 @@ export default function EsgReports() {
 
       {/* --- Modals --- */}
       
-      {/* Report Generation Modal */}
-      {isGenerating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm transition-all duration-300">
-          <div className="bg-white/90 backdrop-blur-2xl border border-white/50 shadow-2xl rounded-xl w-full max-w-sm p-8 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
-            <div className="relative mb-6">
-              <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
-              <svg className="w-20 h-20 transform -rotate-90">
-                <circle
-                  cx="40" cy="40" r="36"
-                  stroke="currentColor" strokeWidth="4" fill="transparent"
-                  className="text-indigo-600 transition-all duration-300 ease-out"
-                  strokeDasharray={226}
-                  strokeDashoffset={226 - (226 * generationProgress) / 100}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                {generationProgress === 100 ? (
-                  <CheckCircle2 className="w-8 h-8 text-emerald-500 animate-in zoom-in" />
-                ) : (
-                  <span className="text-sm font-bold text-indigo-900">{generationProgress}%</span>
-                )}
-              </div>
-            </div>
-            
-            <h3 className="text-lg font-bold text-gray-900 mb-1">
-              {generationProgress === 100 ? "Report Complete" : "Generating ESG Report"}
-            </h3>
-            <p className="text-sm text-gray-500">
-              {generationProgress === 100 
-                ? "Finalizing document structure..." 
-                : "Aggregating latest IoT sensor data and applying AI compliance checks..."}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* View Report react-pdf Modal */}
       {selectedReport && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-md transition-all duration-300 animate-in fade-in">
@@ -360,6 +448,86 @@ export default function EsgReports() {
             </div>
           )}
 
+        </div>
+      )}
+
+      {/* Generation Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">Generate New Report</h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-5">
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Start Period</label>
+                <div className="flex gap-3 items-start">
+                  <div className="flex flex-col gap-2">
+                    <input 
+                      type="date" 
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-[140px] px-2.5 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-xs text-gray-800"
+                    />
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" checked={specifyStartTime} onChange={(e) => setSpecifyStartTime(e.target.checked)} className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <span className="text-[11px] text-gray-500 font-medium">Specify time</span>
+                    </label>
+                  </div>
+                  <div className={`flex items-end gap-1.5 flex-1 justify-center transition-opacity ${specifyStartTime ? '' : 'opacity-30 pointer-events-none'}`}>
+                    <ScrollWheelPicker values={hours12} selected={startHour} onChange={setStartHour} label="" />
+                    <span className="text-lg font-bold text-gray-300 pb-10">:</span>
+                    <ScrollWheelPicker values={minuteVals} selected={startMinute} onChange={setStartMinute} label="" />
+                    <ScrollWheelPicker values={ampmVals} selected={startAmpm} onChange={setStartAmpm} label="" />
+                  </div>
+                </div>
+              </div>
+              <hr className="border-gray-100" />
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">End Period</label>
+                <div className="flex gap-3 items-start">
+                  <div className="flex flex-col gap-2">
+                    <input 
+                      type="date" 
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-[140px] px-2.5 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-xs text-gray-800"
+                    />
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" checked={specifyEndTime} onChange={(e) => setSpecifyEndTime(e.target.checked)} className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <span className="text-[11px] text-gray-500 font-medium">Specify time</span>
+                    </label>
+                  </div>
+                  <div className={`flex items-end gap-1.5 flex-1 justify-center transition-opacity ${specifyEndTime ? '' : 'opacity-30 pointer-events-none'}`}>
+                    <ScrollWheelPicker values={hours12} selected={endHour} onChange={setEndHour} label="" />
+                    <span className="text-lg font-bold text-gray-300 pb-10">:</span>
+                    <ScrollWheelPicker values={minuteVals} selected={endMinute} onChange={setEndMinute} label="" />
+                    <ScrollWheelPicker values={ampmVals} selected={endAmpm} onChange={setEndAmpm} label="" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 border-t border-gray-100">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={submitGenerateReport}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow-sm transition-colors"
+              >
+                Generate
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

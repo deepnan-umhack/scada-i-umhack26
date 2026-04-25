@@ -132,6 +132,7 @@ export default function Dashboard() {
     lights: boolean;
     targetTemperature: number;
     fanSpeed: number;
+    controlReason?: string;
   }>({
     mode: 'auto',
     ac: false,
@@ -349,11 +350,12 @@ export default function Dashboard() {
             setOutsideHumidity(Number(data.outside_humidity.toFixed(1)));
           }
           
-          if (data.temperature !== undefined || data.humidity !== undefined) {
-            const tempVal = data.temperature !== undefined ? Number(data.temperature.toFixed(1)) : temperature;
+          if (data.room_temp !== undefined || data.temperature !== undefined || data.humidity !== undefined) {
+            const incomingTemp = data.room_temp !== undefined ? data.room_temp : data.temperature;
+            const tempVal = incomingTemp !== undefined ? Number(incomingTemp.toFixed(1)) : temperature;
             const humVal = data.humidity !== undefined ? Number(data.humidity.toFixed(1)) : humidity;
             
-            if (data.temperature !== undefined) setTemperature(tempVal);
+            if (incomingTemp !== undefined) setTemperature(tempVal);
             if (data.humidity !== undefined) setHumidity(humVal);
 
             setClimateChartData(prev => {
@@ -363,10 +365,10 @@ export default function Dashboard() {
             });
           }
           
-          const totalPower = data.power_usage !== undefined ? data.power_usage :
+          const totalPower = data.power_kw !== undefined ? data.power_kw : (data.power_usage !== undefined ? data.power_usage :
             (data.ac_power_usage !== undefined && data.light_power_usage !== undefined
               ? data.ac_power_usage + data.light_power_usage
-              : undefined);
+              : undefined));
 
           if (totalPower !== undefined && data.timestamp !== undefined) {
             const powerVal = Number(totalPower.toFixed(2));
@@ -390,7 +392,7 @@ export default function Dashboard() {
               
               // --- REALISTIC DYNAMIC BASELINE ---
               const hour = data.hour_of_day !== undefined ? data.hour_of_day : new Date(data.timestamp).getHours();
-              const occupants = data.occupancy !== undefined ? data.occupancy : 0;
+              const occupants = data.occupancy_count !== undefined ? data.occupancy_count : (data.occupancy !== undefined ? data.occupancy : 0);
               
               // Max hardware capacity based on your payload examples
               const MAX_AC_KW = 1.7;
@@ -413,8 +415,8 @@ export default function Dashboard() {
               if (hoursPassed > 0) {
                 if (isNewDay) {
                   // Reset logic for a new day
-                  setDailyEnergy(powerVal * hoursPassed);
-                  setDailySavings(calculatedSavings * hoursPassed);
+                  setDailyEnergy(0);
+                  setDailySavings(0);
                 } else {
                   // Normal accumulation
                   setDailyEnergy(prev => prev + (powerVal * hoursPassed));
@@ -435,12 +437,55 @@ export default function Dashboard() {
             setGrid(data.seat_status.map((status: number) => status === 1).slice(0, 6));
           } else if (data.grid !== undefined) {
             setGrid(data.grid.slice(0, 6)); 
-          } else if (data.occupancy !== undefined) {
+          } else if (data.occupancy_count !== undefined || data.occupancy !== undefined) {
+            const count = data.occupancy_count !== undefined ? data.occupancy_count : data.occupancy;
             const newGrid = Array(6).fill(false);
-            for(let i=0; i < Math.min(data.occupancy, 6); i++) {
+            for(let i=0; i < Math.min(count, 6); i++) {
               newGrid[i] = true;
             }
             setGrid(newGrid);
+          }
+
+          if (data.fan_speed !== undefined || data.ac_temp_setting !== undefined || data.ac_control_reason !== undefined) {
+            setDevices(prev => {
+              const newState = { ...prev };
+              let hasChanges = false;
+
+              if (data.fan_speed !== undefined && data.fan_speed !== null) {
+                 const fsMap: Record<string, number> = { "AUTO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3 };
+                 if (typeof data.fan_speed === 'string') {
+                   const fsUpper = data.fan_speed.toUpperCase();
+                   if (fsUpper === "OFF") {
+                      if (newState.ac !== false) { newState.ac = false; hasChanges = true; }
+                   } else if (fsMap[fsUpper] !== undefined) {
+                      if (newState.fanSpeed !== fsMap[fsUpper]) { newState.fanSpeed = fsMap[fsUpper]; hasChanges = true; }
+                      if (newState.ac !== true) { newState.ac = true; hasChanges = true; }
+                   }
+                 }
+              }
+
+              if (data.ac_temp_setting !== undefined) {
+                 if (data.ac_temp_setting === null || (typeof data.ac_temp_setting === 'string' && data.ac_temp_setting.toUpperCase() === "OFF")) {
+                    if (newState.ac !== false) { newState.ac = false; hasChanges = true; }
+                 } else {
+                    const temp = parseFloat(data.ac_temp_setting);
+                    if (!isNaN(temp) && newState.targetTemperature !== temp) {
+                       newState.targetTemperature = temp;
+                       hasChanges = true;
+                    }
+                    if (newState.ac !== true) { newState.ac = true; hasChanges = true; }
+                 }
+              }
+
+              if (data.ac_control_reason !== undefined && data.ac_control_reason !== null) {
+                 if (newState.controlReason !== data.ac_control_reason) {
+                    newState.controlReason = data.ac_control_reason;
+                    hasChanges = true;
+                 }
+              }
+
+              return hasChanges ? newState : prev;
+            });
           }
         }
       } catch (err) {
@@ -822,7 +867,7 @@ export default function Dashboard() {
                 <div className={`p-2.5 rounded-lg transition-colors ${devices.mode === 'auto' ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-400'}`}><Settings2 size={24} /></div>
                 <div>
                   <p className="font-semibold text-sm text-gray-800">Operating Mode</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{devices.mode === 'auto' ? 'Auto AI Control' : 'Manual Override'}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{devices.mode === 'auto' ? (devices.controlReason || 'Auto AI Control') : 'Manual Override'}</p>
                 </div>
               </div>
               <div className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors ${devices.mode === 'auto' ? 'bg-green-500' : 'bg-gray-300'}`}><div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${devices.mode === 'auto' ? 'translate-x-6' : 'translate-x-0'}`}></div></div>
