@@ -14,7 +14,7 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // 2. The 'schedule' wrapper tells Netlify to run this on a timer
-export const handler = schedule('*/5 * * * *', async (_event) => {
+export const handler = schedule('*/5 * * * *', async () => {
   console.log("⏰ Waking up to check booking statuses...");
   
   // Get the exact time right now
