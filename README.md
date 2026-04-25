@@ -20,7 +20,7 @@ This project is licensed under the MIT License — see `LICENSE`.
 ## 1. Goto scada-i-umhack26 directory
 
 ```bash
-cd scada-i-umhack26
+cd website
 ```
 
 ## 2. Install dependencies
