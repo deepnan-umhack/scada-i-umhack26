@@ -156,7 +156,6 @@ const MainChat: React.FC<MainChatProps> = ({
       }
     } catch (error) {
       console.error("Chat API failed:", error);
-      console.error("Chat API failed:", error);
       setMessages(prev => [...prev, {
         role: 'agent',
         text: "Connection failed. Please check your internet or try again later."
