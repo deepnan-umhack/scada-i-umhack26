@@ -21,7 +21,7 @@ jobs:
 
       - name: Run Postman Collection
         run: |
-          newman run "postman/collections/HVAC Agent API Tests/collection.json" \
+          newman run postman/collection.json \
             --env-var "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
             --env-var "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
             --reporters cli

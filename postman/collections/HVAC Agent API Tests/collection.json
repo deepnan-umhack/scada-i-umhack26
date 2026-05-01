@@ -3,6 +3,10 @@
     "name": "HVAC Agent API Tests",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "variable": [
+    { "key": "SUPABASE_URL", "value": "" },
+    { "key": "SUPABASE_ANON_KEY", "value": "" }
+  ],
   "item": [
     {
       "name": "GET post (jsonplaceholder)",
