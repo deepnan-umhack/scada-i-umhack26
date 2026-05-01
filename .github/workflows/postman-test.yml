@@ -20,4 +20,4 @@ jobs:
         run: npm install -g newman
 
       - name: Run Postman Collection
-        run: newman run postman/collection.json --reporters cli
+        run: newman run postman/collections/HVAC\ Agent\ API\ Tests/New\ Request.request.yaml --reporters cli
