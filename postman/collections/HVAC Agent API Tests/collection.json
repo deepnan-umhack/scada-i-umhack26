@@ -91,7 +91,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\"name\": \"Test Department CI\"}"
+          "raw": "{\"name\": \"Test Department CI\", \"description\": \"Automated CI test department\"}"
         },
         "url": {
           "raw": "{{SUPABASE_URL}}/rest/v1/departments",
