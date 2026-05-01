@@ -21111,7 +21111,7 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error("Missing SUPABASE env vars for update-bookings function");
 }
 var supabase = createClient(supabaseUrl, supabaseKey);
-var handler = schedule("*/5 * * * *", async (event) => {
+var handler = schedule("*/5 * * * *", async () => {
   console.log("\u23F0 Waking up to check booking statuses...");
   const now = (/* @__PURE__ */ new Date()).toISOString();
   try {

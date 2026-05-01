@@ -27,6 +27,7 @@ interface MainChatProps {
 interface Message {
   role: 'user' | 'agent';
   text: string;
+  thoughts?: string[];
   tags?: {
     space: string | null;
     equipment: string[];
@@ -55,6 +56,7 @@ const MainChat: React.FC<MainChatProps> = ({
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedThoughts, setExpandedThoughts] = useState<Record<number, boolean>>({});
   const [threadId] = useState(() => Math.random().toString(36).substring(7));
   const [user, setUser] = useState<any>(null);
 
@@ -135,7 +137,7 @@ const MainChat: React.FC<MainChatProps> = ({
         user_id: user?.id ? `${user.id}` : "user_01"
       };
 
-      const response = await fetch("https://scada-i-umhack26-1.onrender.com/chat", {
+      const response = await fetch("https://scada-i-umhack26-production.up.railway.app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadToSend),
@@ -145,22 +147,136 @@ const MainChat: React.FC<MainChatProps> = ({
         throw new Error("Server error");
       }
 
-      const data = await response.json();
-      if (data.reply) {
-        setMessages(prev => [...prev, { role: 'agent', text: data.reply }]);
+      const contentType = response.headers.get("content-type") || "";
+      const isStream = contentType.includes("text/event-stream") || contentType.includes("text/plain") || !contentType.includes("application/json");
+
+      if (isStream && response.body) {
+        // Streaming response — render tokens progressively
+        setMessages(prev => [...prev, { role: 'agent', text: '', thoughts: [] }]);
+        setIsLoading(false);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        const processLine = (line: string) => {
+          const raw = line.startsWith('data: ') ? line.slice(6).trim() : line.trim();
+          if (!raw || raw === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(raw);
+            const type = parsed.type;
+
+            if (type === 'thought') {
+              // Append thought to the last agent message's thoughts array
+              const detail: string = parsed.details ?? parsed.text ?? parsed.content ?? '';
+              if (detail) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last?.role === 'agent') {
+                    updated[updated.length - 1] = {
+                      ...last,
+                      thoughts: [...(last.thoughts ?? []), detail],
+                    };
+                  }
+                  return updated;
+                });
+              }
+            } else if (type === 'final_response') {
+              // Stream the reply text into the message
+              const token: string = parsed.details ?? parsed.text ?? parsed.content ?? parsed.reply ?? '';
+              if (token) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last?.role === 'agent') {
+                    updated[updated.length - 1] = { ...last, text: last.text + token };
+                  }
+                  return updated;
+                });
+              }
+            } else if (type === 'done') {
+              // Stream complete — nothing extra needed
+            } else {
+              // Fallback: treat as plain token (legacy / other formats)
+              const token: string = parsed.token ?? parsed.text ?? parsed.content ?? parsed.reply ?? raw;
+              if (token) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last?.role === 'agent') {
+                    updated[updated.length - 1] = { ...last, text: last.text + token };
+                  }
+                  return updated;
+                });
+              }
+            }
+          } catch {
+            // Plain text token fallback
+            if (raw) {
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'agent') {
+                  updated[updated.length - 1] = { ...last, text: last.text + raw };
+                }
+                return updated;
+              });
+            }
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            processLine(line);
+          }
+        }
+
+        // Flush any remaining buffer
+        if (buffer.trim()) {
+          processLine(buffer);
+        }
+
+        // If stream ended with empty message, show fallback
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'agent' && !last.text.trim()) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { ...last, text: "The server connected but didn't provide a reply. Please try again." };
+            return updated;
+          }
+          return prev;
+        });
+
       } else {
-        setMessages(prev => [...prev, {
-          role: 'agent',
-          text: "The server connected but didn't provide a reply. Please try again."
-        }]);
+        // JSON response fallback
+        const data = await response.json();
+        if (data.reply) {
+          setMessages(prev => [...prev, { role: 'agent', text: data.reply }]);
+        } else {
+          setMessages(prev => [...prev, {
+            role: 'agent',
+            text: "The server connected but didn't provide a reply. Please try again."
+          }]);
+        }
+        setIsLoading(false);
       }
+
     } catch (error) {
       console.error("Chat API failed:", error);
       setMessages(prev => [...prev, { 
         role: 'agent', 
         text: "Connection failed. Please check your internet or try again later." 
       }]);
-    } finally {
       setIsLoading(false);
     }
 
@@ -342,13 +458,50 @@ const MainChat: React.FC<MainChatProps> = ({
               <div className="w-full max-w-3xl mx-auto flex flex-col gap-5 pb-0 mt-auto">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-sm ${
-                      msg.role === 'user' ? 'bg-[#1A1A1A] text-white rounded-br-none' : 'bg-white text-[#1A1A1A] border border-slate-200 rounded-bl-none'
+                    <div className={`max-w-[80%] rounded-2xl shadow-sm overflow-hidden ${
+                      msg.role === 'user' ? 'bg-[#1A1A1A] text-white rounded-br-none px-5 py-3' : 'bg-white text-[#1A1A1A] border border-slate-200 rounded-bl-none'
                     }`}>
                       {msg.role === 'agent' ? (
-                        <div className="prose prose-sm max-w-none prose-slate">
-                          <ReactMarkdown>{msg.text}</ReactMarkdown>
-                        </div>
+                        <>
+                          {/* Thoughts dropdown — only shown if thoughts exist */}
+                          {msg.thoughts && msg.thoughts.length > 0 && (
+                            <div className="border-b border-slate-100">
+                              <button
+                                onClick={() => setExpandedThoughts(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                className="w-full flex items-center justify-between gap-2 px-5 py-2.5 text-[11px] font-medium text-slate-400 hover:text-slate-500 hover:bg-slate-50/70 transition-all group"
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <svg className="w-3 h-3 text-slate-300 animate-none" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 1v9M5 7l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    <path d="M2 13h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                  </svg>
+                                  <span className="italic">Thought for a moment</span>
+                                </div>
+                                <svg
+                                  className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${expandedThoughts[idx] ? 'rotate-180' : ''}`}
+                                  viewBox="0 0 16 16" fill="none"
+                                >
+                                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </button>
+                              {/* Expanded thoughts list */}
+                              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedThoughts[idx] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                <div className="px-5 pb-3 pt-1 flex flex-col gap-2 border-t border-slate-100/80">
+                                  {msg.thoughts.map((thought, ti) => (
+                                    <div key={ti} className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-400">
+                                      <span className="mt-0.5 shrink-0 text-slate-300 text-[10px]">·</span>
+                                      <span className="italic">{thought}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {/* Main reply */}
+                          <div className="prose prose-sm max-w-none prose-slate px-5 py-3">
+                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                          </div>
+                        </>
                       ) : (
                         <div className="whitespace-pre-wrap">
                           {msg.text || "Check these requirements:"}
