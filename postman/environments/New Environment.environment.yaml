@@ -1,0 +1,6 @@
+name: New Environment
+values:
+  - key: SUPABASE_URL
+    value: ''
+  - key: SUPABASE_ANON_KEY
+    value: ''
