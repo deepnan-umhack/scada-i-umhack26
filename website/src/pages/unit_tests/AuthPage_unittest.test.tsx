@@ -33,9 +33,11 @@ describe('AuthPage (targeted unit tests)', () => {
   it('UT-02: toggles into sign-up mode and shows extra fields', async () => {
     renderAuthPage()
     fireEvent.click(screen.getByRole('button', { name: /sign up/i }))
-    await waitFor(() => expect(screen.getByPlaceholderText('Full Name')).toBeInTheDocument())
-    expect(screen.getByPlaceholderText('Staff ID')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Phone Number')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Full Name')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Staff ID')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Phone Number')).toBeInTheDocument()
+    })
   })
 
   it('UT-03: calls onLoginSuccess when login succeeds', async () => {
