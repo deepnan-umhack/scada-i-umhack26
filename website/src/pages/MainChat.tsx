@@ -498,11 +498,6 @@ const MainChat: React.FC<MainChatProps> = ({
     if (displayedEquipment.length === 0) ghostTags.push(<button key="g-e" onClick={() => onOpenEquipmentCatalog()} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0 hover:bg-slate-50 transition-colors">+ Add Equipment</button>);
     if (displayedDepts.length === 0) ghostTags.push(<button key="g-d" onClick={() => onOpenDepartmentDirectory()} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0 hover:bg-slate-50 transition-colors">+ Add Dept</button>);
 
-    const allMobile = [...allTags, ...ghostTags];
-    const mRow1 = allMobile.filter((_, idx) => idx === 0 || idx === 1 || (idx > 3 && idx % 2 === 0));
-    const mRow2 = allMobile.filter((_, idx) => idx === 2 || idx === 3 || (idx > 3 && idx % 2 !== 0));
-    const dCount = Math.max(3, Math.ceil(allTags.length / 2));
-
     return (
       <>
         {/* Mobile View */}

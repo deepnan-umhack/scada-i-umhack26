@@ -364,10 +364,10 @@ describe('MainChat Component', () => {
     });
     render(<MainChat {...{ ...mockProps, requirement: 'Hello' }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    await waitFor(() => expect(screen.getByText('Thought for a moment')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Show thoughts')).toBeInTheDocument());
   });
 
-  it('expands thoughts when Thought for a moment is clicked', async () => {
+  it('expands thoughts when Show thoughts is clicked', async () => {
     (global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
       headers: { get: () => 'application/json' },
@@ -375,8 +375,8 @@ describe('MainChat Component', () => {
     });
     render(<MainChat {...{ ...mockProps, requirement: 'Hello' }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    await waitFor(() => screen.getByText('Thought for a moment'));
-    fireEvent.click(screen.getByText('Thought for a moment'));
+    await waitFor(() => screen.getByText('Show thoughts'));
+    fireEvent.click(screen.getByText('Show thoughts'));
     expect(screen.getByText('Thinking about it...')).toBeInTheDocument();
   });
 
@@ -418,7 +418,7 @@ describe('MainChat Component', () => {
     });
     render(<MainChat {...{ ...mockProps, requirement: 'Hello' }} />);
     fireEvent.click(screen.getByText('\u27a4').closest('button')!);
-    await waitFor(() => expect(screen.getByText('Thought for a moment')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Show thoughts')).toBeInTheDocument());
   });
 
   it('handles streaming action event type', async () => {
@@ -664,7 +664,20 @@ describe('MainChat Component', () => {
 
   // --- Thinking indicator while loading ---
   it('shows Thinking... while fetching', async () => {
-    (global.fetch as Mock).mockImplementationOnce(() => new Promise(() => {}));
+    const encoder = new TextEncoder();
+    // Stream sends a thought (which creates the agent bubble with empty text)
+    // but never sends final_response, so Thinking... stays visible
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"thought","details":"Processing..."}\n\n'));
+        // deliberately never closes — simulates in-progress stream
+      }
+    });
+    (global.fetch as Mock).mockResolvedValueOnce({
+      ok: true,
+      headers: { get: () => 'text/event-stream' },
+      body: stream,
+    });
     render(<MainChat {...{ ...mockProps, requirement: 'Hello' }} />);
     fireEvent.click(screen.getByText('\u27a4').closest('button')!);
     await waitFor(() => expect(screen.getByText('Thinking...')).toBeInTheDocument());
