@@ -39,7 +39,6 @@ HVAC_OPTIMIZER_MODE = os.getenv("HVAC_OPTIMIZER_MODE", "auto").lower()
 DEFAULT_OCCUPANCY_CONFIDENCE = float(os.getenv("DEFAULT_OCCUPANCY_CONFIDENCE", "1.0"))
 MAX_SENSOR_STALENESS_MIN = int(os.getenv("MAX_SENSOR_STALENESS_MIN", "15"))
 MAX_HVAC_STATE_STALENESS_MIN = int(os.getenv("MAX_HVAC_STATE_STALENESS_MIN", "30"))
-HACKATHON_SENSOR_ROOM_ID = "628d826f-c8f2-4185-9541-b492842f100d"
 
 # =========================================================
 # Clients
@@ -422,7 +421,7 @@ def diagnose_sensor_health(room_id: str) -> SensorHealthReport:
     - failed: one or more critical issues
     """
     checked_at = _utc_now().isoformat()
-    effective_room_id = HACKATHON_SENSOR_ROOM_ID
+    effective_room_id = room_id
     issues: list[str] = []
     warnings: list[str] = []
 

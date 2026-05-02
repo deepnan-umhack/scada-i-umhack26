@@ -17,7 +17,7 @@ class GetRoomDirectoryInput(BaseModel):
     min_capacity: int = Field(1, description="Minimum capacity required.")
     room_type: Optional[str] = Field(None, description="Optional type of room (e.g., 'boardroom', 'huddle', 'auditorium').")
     required_features: Optional[List[str]] = Field(None, description="Optional list of required features (e.g., ['projector', 'whiteboard']).")
-    limit: int = Field(5, description="Max number of rooms to return.")
+    limit: int = Field(10, description="Max number of rooms to return.")
 
 # ------------------------------------------------------------------
 # 2. Main Tool Logic
@@ -108,7 +108,7 @@ async def get_room_directory_tool(
             final_types.append(data)
             
         # Apply the limit to the number of TYPES returned
-        safe_limit = min(limit, 10)
+        safe_limit = min(limit, 15)
         final_types = final_types[:safe_limit]
 
         return json.dumps({"status": "success", "available_types": final_types})

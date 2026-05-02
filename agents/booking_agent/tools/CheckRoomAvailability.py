@@ -70,7 +70,6 @@ async def _query_available_rooms(
     start_time: datetime, 
     end_time: datetime, 
     exclude_booking_id: Optional[str], 
-    limit: int
 ) -> List[dict]:
     """Return list of room dicts from DB matching capacity and not booked."""
     conn = await asyncpg.connect(DATABASE_URL)
@@ -97,10 +96,9 @@ async def _query_available_rooms(
                     AND ($4::uuid IS NULL OR b.id != $4::uuid)
               )
             ORDER BY r.capacity ASC
-            LIMIT $5
         """
         # Pass the exclude_booking_id as the 4th parameter, and limit as the 5th
-        rows = await conn.fetch(query, min_capacity, start_time, end_time, exclude_booking_id, limit)
+        rows = await conn.fetch(query, min_capacity, start_time, end_time, exclude_booking_id)
         results = []
         for r in rows:
             features = r.get("features")
@@ -152,7 +150,7 @@ async def check_room_availability_tool(
         try:
             # Pass the new parameter into the query function
             rooms = await _query_available_rooms(
-                min_capacity, start_time, end_time, exclude_booking_id, safe_limit
+                min_capacity, start_time, end_time, exclude_booking_id
             )
         except Exception as e:
             return AvailabilityResult(
@@ -176,6 +174,8 @@ async def check_room_availability_tool(
                 filtered.append(r)
         rooms = filtered
 
+    rooms = rooms[:safe_limit]
+
     if not rooms:
         return AvailabilityResult(
             status="no_rooms_found", 
@@ -193,8 +193,9 @@ if __name__ == "__main__":
             "start_time_utc": (now + timedelta(days=1)).isoformat(),
             "duration_minutes": 60,
             "min_capacity": 2,
-            "required_features": None,
-            "exclude_booking_id": None # Test passing None
+            "required_features": ['Computers'],
+            "exclude_booking_id": None, # Test passing None
+            "limit": 5
         }
         
         # Test it natively using .invoke() which LangChain V0.2+ prefers
