@@ -71,16 +71,37 @@ with st.sidebar:
 
 # --- ASYNC EXECUTION BRIDGE ---
 # We wrap the invocation in a clean async function to protect the Postgres connection pool
+import json
+
+# --- ASYNC EXECUTION BRIDGE ---
 async def run_orchestrator(user_text: str, u_id: str, t_id: str):
     backend_prompt = f"{user_text}\n[SYSTEM NOTE: The current user's ID is '{u_id}']"
     config = {"configurable": {"thread_id": t_id}}
     
-    # 🚀 FIX 3: Call run_graph instead of app.ainvoke
-    result = await run_graph(
-        {"messages": [HumanMessage(content=backend_prompt)]}, 
-        config=config
-    )
-    return result["messages"][-1].content
+    final_response_text = ""
+    
+    # 🚀 FIX: Use 'async for' to iterate through the async generator
+    async for sse_event in run_graph({"messages": [HumanMessage(content=backend_prompt)]}, config=config):
+        
+        # Strip the "data: " prefix and whitespace to parse the JSON
+        if sse_event.startswith("data: "):
+            json_str = sse_event[6:].strip()
+            
+            try:
+                data = json.loads(json_str)
+                
+                # You can optionally use st.write() here to show intermediate thoughts in the UI!
+                # if data["type"] == "thought":
+                #     print(f"Agent Thinking: {data['details']}")
+                
+                # Capture the final synthesized response
+                if data.get("type") == "final_response":
+                    final_response_text = data.get("details", "")
+                    
+            except json.JSONDecodeError:
+                continue
+
+    return final_response_text
 
 # --- CHAT UI ---
 for msg in st.session_state.messages:
