@@ -43,4 +43,4 @@ describe('AuthPage (targeted unit tests)', () => {
     fireEvent.submit(screen.getByRole('button', { name: /login/i }).closest('form')!)
     await waitFor(() => expect(window.alert).toHaveBeenCalledWith('Login failed: Invalid credentials'))
   })
-
+})
