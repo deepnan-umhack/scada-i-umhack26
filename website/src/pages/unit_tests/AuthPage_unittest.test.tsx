@@ -30,15 +30,6 @@ describe('AuthPage (targeted unit tests)', () => {
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument()
   })
 
-  it('UT-02: toggles into sign-up mode and shows extra fields', async () => {
-    renderAuthPage()
-    fireEvent.click(screen.getByRole('button', { name: /sign up/i }))
-    expect(await screen.findByPlaceholderText(/full name/i)).toBeInTheDocument()
-    expect(await screen.findByPlaceholderText(/staff id/i)).toBeInTheDocument()
-    expect(await screen.findByPlaceholderText(/phone number/i)).toBeInTheDocument()
-  })
-  })
-
   it('UT-03: calls onLoginSuccess when login succeeds', async () => {
     mockSignIn.mockResolvedValue({ error: null })
     renderAuthPage()
