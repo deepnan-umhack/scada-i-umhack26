@@ -45,15 +45,15 @@ def send_chat(message: str, thread_id: str = THREAD_ID, user_id: str = USER_ID):
         stream=True,
     )
 
-def is_valid_response(response) -> tuple[bool, str]:
+def is_valid_response(response) -> tuple[bool, str, str]:
     """
     Validate the streaming response:
     - HTTP 200
     - At least one line with type='final_response' and non-empty 'details'
-    Returns (passed: bool, reason: str)
+    Returns (passed: bool, reason: str, reply: str)
     """
     if response.status_code != 200:
-        return False, f"HTTP {response.status_code}"
+        return False, f"HTTP {response.status_code}", ""
 
     import json
     final_reply = None
@@ -80,11 +80,11 @@ def is_valid_response(response) -> tuple[bool, str]:
                     final_reply = text
                     break  # got what we need, no point reading further
     except Exception as e:
-        return False, f"Error reading stream: {e}"
+        return False, f"Error reading stream: {e}", ""
 
     if final_reply is None:
-        return False, "No 'final_response' event found in stream"
-    return True, "OK"
+        return False, "No 'final_response' event found in stream", ""
+    return True, "OK", final_reply
 
 
 # ─── INDIVIDUAL PYTEST CASES ──────────────────────────────
@@ -93,10 +93,12 @@ def test_chat_endpoint(flow, message):
     """Each test case must return HTTP 200 with a valid reply."""
     start = time.time()
     response = send_chat(message)
-    passed, reason = is_valid_response(response)
+    passed, reason, reply = is_valid_response(response)
     elapsed = time.time() - start
     response_times.append(elapsed)
     print(f"\n[{flow}] Response time: {elapsed:.2f}s")
+    if reply:
+        print(f"[{flow}] Agent reply: {reply}")
     assert passed, f"[{flow}] FAILED — {reason} | Message: '{message}'"
 
 
