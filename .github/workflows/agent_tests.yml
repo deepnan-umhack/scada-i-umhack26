@@ -1,0 +1,44 @@
+name: Agent Unit Tests (Pytest)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  python-unit-tests:
+    name: Python unit tests (booking/esg/hvac)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r agents/requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run booking + ESG + HVAC pytest files
+        env:
+          PYTHONPATH: ${{ github.workspace }}/agents
+        run: |
+          pytest -q -s \
+            agents/booking_agent/tools/unit_tests/check_equipment_availability_unittest.py \
+            agents/booking_agent/tools/unit_tests/check_room_availability_unittest.py \
+            agents/booking_agent/tools/unit_tests/create_booking_record_unittest.py \
+            agents/booking_agent/tools/unit_tests/get_room_directory_unittest.py \
+            agents/esg_agent/tools/unit_tests/analyze_hvac_compliance_unittest.py \
+            agents/esg_agent/tools/unit_tests/generate_esg_report_unittest.py \
+            agents/esg_agent/tools/unit_tests/policy_retriever_unittest.py \
+            agents/hvac_agent/tests/unit_tests/parse_target_time_unittest.py \
+            agents/hvac_agent/tests/unit_tests/select_nearest_hour_index_unittest.py \
+            agents/hvac_agent/tests/unit_tests/calculate_weather_aware_precool_start_unittest.py \
+            agents/hvac_agent/tests/unit_tests/run_hvac_request_unittest.py

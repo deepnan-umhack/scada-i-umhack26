@@ -1,0 +1,35 @@
+name: Frontend Unit Tests (Vitest)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  frontend-unit-tests:
+    name: Frontend unit tests (vitest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install website dependencies
+        working-directory: website
+        run: npm ci
+
+      - name: Run focused vitest files
+        working-directory: website
+        run: |
+          npx vitest run \
+            src/pages/unit_tests/AuthPage_unittest.test.tsx \
+            src/pages/unit_tests/BrowseSpaces_unittest.test.tsx \
+            src/pages/unit_tests/LandingPage_unittest.test.tsx
