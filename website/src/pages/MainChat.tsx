@@ -91,7 +91,7 @@ const MainChat: React.FC<MainChatProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [expandedThoughts, setExpandedThoughts] = useState<Record<number, boolean>>({});
-  const useMockAI = true;
+  const useMockAI = false;
 
   useEffect(() => {
     localStorage.setItem('chat_messages', JSON.stringify(messages));
@@ -234,7 +234,7 @@ const MainChat: React.FC<MainChatProps> = ({
         user_id: user?.id ? `${user.id}` : "user_01"
       };
 
-      const response = await fetch("https://scada-i-umhack26-1.onrender.com/chat", {
+      const response = await fetch("https://scada-i-umhack26-production.up.railway.app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadToSend),
