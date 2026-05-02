@@ -12,7 +12,6 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState({
     name: '',
-    staffId: '',
     phone: '',
     email: '',
     password: ''
@@ -36,13 +35,6 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    // 1. FIRST check if the native HTML5 validation passes!
-    if (formRef.current && !formRef.current.checkValidity()) {
-      formRef.current.reportValidity();
-      return;
-    }
-
-    // 2. NOW we can safely prevent default and handle the API logic
     e.preventDefault();
     setLoading(true);
 
@@ -66,7 +58,6 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
         options: {
           data: {
             full_name: formData.name,
-            staff_id: formData.staffId,
             phone: fullPhoneNumber,
           }
         }
@@ -77,7 +68,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
       } else {
         alert("Sign up successful! You can now log in.");
         setIsLogin(true);
-        setFormData({ name: '', staffId: '', phone: '', email: '', password: '' });
+        setFormData({ name: '', phone: '', email: '', password: '' });
       }
     }
 
@@ -107,17 +98,6 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
                 onChange={handleInputChange}
                 onBlur={handleBlur}
               />
-              <input
-                type="text"
-                name="staffId"
-                value={formData.staffId}
-                placeholder="Staff ID"
-                required
-                className="w-full bg-white rounded-full px-6 py-4 border border-white focus:border-slate-200 outline-none shadow-xs text-slate-700 text-[16px]"
-                onChange={handleInputChange}
-                onBlur={handleBlur}
-              />
-
               {/* Custom Fixed Prefix Phone Input */}
               <div className="w-full bg-white rounded-full px-6 py-4 border border-white focus-within:border-slate-200 shadow-xs flex items-center gap-3 transition-colors">
                 <div className="flex items-center gap-2 pr-3 border-r border-slate-200 shrink-0 select-none">
@@ -128,7 +108,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
                   type="tel"
                   name="phone"
                   value={formData.phone}
-                  placeholder="12 345 6789"
+                  placeholder="Phone Number"
                   required
                   minLength={9}
                   maxLength={10}
@@ -172,8 +152,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
           />
 
           <button
-            type="button"
-            onClick={handleSubmit}
+            type="submit"
             disabled={loading}
             className="w-full bg-white py-4 rounded-full shadow-md font-bold uppercase tracking-widest text-[13px] active:scale-95 transition-all mt-4 border border-slate-50 flex items-center justify-center disabled:opacity-50"
           >
@@ -191,7 +170,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
               type="button"
               onClick={() => {
                 setIsLogin(!isLogin);
-                setFormData({ name: '', staffId: '', phone: '', email: '', password: '' });
+                setFormData({ name: '', phone: '', email: '', password: '' });
               }}
               className="ml-2 font-bold text-cyan-500 hover:text-pink-500 transition-colors underline decoration-dotted underline-offset-4"
             >

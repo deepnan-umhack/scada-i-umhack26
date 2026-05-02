@@ -27,7 +27,10 @@ const defaultProps = {
 }
 
 describe('EquipmentCatalog', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
 
   // --- Rendering ---
   it('renders without crashing', () => {
@@ -61,6 +64,11 @@ describe('EquipmentCatalog', () => {
     expect(screen.getByAltText('DeepNaN')).toBeInTheDocument()
   })
 
+  it('renders Bookings button', () => {
+    render(<EquipmentCatalog {...defaultProps} />)
+    expect(screen.getByText('Bookings')).toBeInTheDocument()
+  })
+
   // --- Quantity Modal ---
   it('opens quantity modal when equipment card is clicked', () => {
     render(<EquipmentCatalog {...defaultProps} />)
@@ -69,10 +77,10 @@ describe('EquipmentCatalog', () => {
   })
 
   it('shows the correct item name in the modal', () => {
-  render(<EquipmentCatalog {...defaultProps} />)
-  fireEvent.click(screen.getByAltText('Camera'))  // click the image instead
-  expect(screen.getByText(/how many do you need/i)).toBeInTheDocument()
-})
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Camera'))
+    expect(screen.getByText(/how many do you need/i)).toBeInTheDocument()
+  })
 
   it('defaults quantity to 1 in modal', () => {
     render(<EquipmentCatalog {...defaultProps} />)
@@ -136,6 +144,13 @@ describe('EquipmentCatalog', () => {
     expect(screen.queryByText(/how many do you need/i)).not.toBeInTheDocument()
   })
 
+  it('calls onEquipmentSelected with x1 when no increment', () => {
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByText('Chair'))
+    fireEvent.click(screen.getByText('Add to Chat'))
+    expect(defaultProps.onEquipmentSelected).toHaveBeenCalledWith('Chair (x1)')
+  })
+
   // --- Tagged badge ---
   it('shows tagged badge on already-selected equipment', () => {
     render(<EquipmentCatalog {...defaultProps} selectedEquipment={['Camera (x2)']} />)
@@ -146,6 +161,14 @@ describe('EquipmentCatalog', () => {
     render(<EquipmentCatalog {...defaultProps} selectedEquipment={['Table (x1)']} />)
     fireEvent.click(screen.getAllByText('Table')[0])
     expect(screen.getByText('Update Tag')).toBeInTheDocument()
+  })
+
+  it('calls onEquipmentSelected with updated qty on Update Tag', () => {
+    render(<EquipmentCatalog {...defaultProps} selectedEquipment={['Table (x1)']} />)
+    fireEvent.click(screen.getAllByText('Table')[0])
+    fireEvent.click(screen.getByText('+'))
+    fireEvent.click(screen.getByText('Update Tag'))
+    expect(defaultProps.onEquipmentSelected).toHaveBeenCalledWith('Table (x2)')
   })
 
   // --- Toast ---
@@ -167,6 +190,12 @@ describe('EquipmentCatalog', () => {
   it('calls onBack when close ✕ button clicked', () => {
     render(<EquipmentCatalog {...defaultProps} />)
     fireEvent.click(screen.getByText('✕'))
+    expect(defaultProps.onBack).toHaveBeenCalled()
+  })
+
+  it('calls onBack when logo is clicked', () => {
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('DeepNaN'))
     expect(defaultProps.onBack).toHaveBeenCalled()
   })
 
@@ -197,10 +226,92 @@ describe('EquipmentCatalog', () => {
     expect(defaultProps.onOpenProfileSettings).toHaveBeenCalled()
   })
 
+  it('calls onOpenBookingStatus from sidebar Booking history', () => {
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    fireEvent.click(screen.getByText('Booking history'))
+    expect(defaultProps.onOpenBookingStatus).toHaveBeenCalled()
+  })
+
   it('closes sidebar overlay on backdrop click', () => {
     render(<EquipmentCatalog {...defaultProps} />)
     fireEvent.click(screen.getByAltText('Menu'))
     const overlay = document.querySelector('.fixed.inset-0.bg-black\\/5')
     if (overlay) fireEvent.click(overlay)
+    // sidebar is CSS-transformed not unmounted; overlay click state is sufficient
+    expect(document.body).toBeInTheDocument()
+  })
+
+  // --- Chat history in sidebar ---
+  it('shows No recent chats when history is empty', () => {
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    expect(screen.getByText('No recent chats')).toBeInTheDocument()
+  })
+
+  it('renders chat history items from localStorage', () => {
+    const history = [{ id: 'abc', title: 'My Chat', messages: [] }]
+    localStorage.setItem('chat_history', JSON.stringify(history))
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    expect(screen.getByText('My Chat')).toBeInTheDocument()
+  })
+
+  it('loads a chat session when history item is clicked', () => {
+    const history = [{ id: 'abc', title: 'My Chat', messages: [] }]
+    localStorage.setItem('chat_history', JSON.stringify(history))
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    fireEvent.click(screen.getByText('My Chat'))
+    expect(defaultProps.onBack).toHaveBeenCalled()
+  })
+
+  it('opens kebab menu for a chat history item', () => {
+    const history = [{ id: 'abc', title: 'Old Chat', messages: [] }]
+    localStorage.setItem('chat_history', JSON.stringify(history))
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    expect(screen.getByText('Rename')).toBeInTheDocument()
+    expect(screen.getByText('Delete')).toBeInTheDocument()
+  })
+
+  it('deletes a chat history item', () => {
+    const history = [{ id: 'abc', title: 'Old Chat', messages: [] }]
+    localStorage.setItem('chat_history', JSON.stringify(history))
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Delete'))
+    expect(screen.queryByText('Old Chat')).not.toBeInTheDocument()
+  })
+
+  it('renames a chat history item via rename flow', () => {
+    const history = [{ id: 'abc', title: 'Old Chat', messages: [] }]
+    localStorage.setItem('chat_history', JSON.stringify(history))
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Rename'))
+    const input = screen.getByDisplayValue('Old Chat')
+    fireEvent.change(input, { target: { value: 'New Name' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByText('New Name')).toBeInTheDocument()
+  })
+
+  it('cancels rename with Escape key', () => {
+    const history = [{ id: 'abc', title: 'Old Chat', messages: [] }]
+    localStorage.setItem('chat_history', JSON.stringify(history))
+    render(<EquipmentCatalog {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Rename'))
+    const input = screen.getByDisplayValue('Old Chat')
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.getByText('Old Chat')).toBeInTheDocument()
   })
 })

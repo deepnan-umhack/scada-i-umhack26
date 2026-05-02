@@ -323,10 +323,6 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
                       <p className="text-base text-slate-800 font-base">{user?.email || 'username@utm.my'}</p>
                     </div>
                     <div>
-                      <label className="text-[13px] font-bold text-slate-400 uppercase block mb-1 tracking-widest">Staff Identification</label>
-                      <p className="text-base text-slate-800 font-base">UTM-FAC-2026-99</p>
-                    </div>
-                    <div>
                       <label className="text-[13px] font-bold text-slate-400 uppercase block mb-1 tracking-widest">Office Location</label>
                       <p className="text-base text-slate-800 font-base">Building N28, Room 402</p>
                     </div>
