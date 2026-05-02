@@ -7,6 +7,7 @@ import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
 import { supabase } from '../lib/supabaseClient';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const IconRetry = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>
@@ -686,7 +687,7 @@ const MainChat: React.FC<MainChatProps> = ({
                                 </svg>
                               </button>
 
-                              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedThoughts[idx] ? 'max-h-[600px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+                              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedThoughts[idx] ? 'max-h-150 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
                                 <div className="border-l-2 border-slate-200 pl-3 ml-1 flex flex-col gap-2">
                                   {msg.thoughts.map((thoughtItem, ti) => (
                                     <div key={ti} className="text-[11px] leading-relaxed text-slate-500 italic whitespace-pre-wrap font-mono">
@@ -700,7 +701,17 @@ const MainChat: React.FC<MainChatProps> = ({
 
                           <div className="prose prose-sm max-w-none prose-slate wrap-break-word whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                             {msg.text ? (
-                              <ReactMarkdown>{msg.text}</ReactMarkdown>
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  table: ({ ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse border border-slate-300 text-sm" {...props} /></div>,
+                                  thead: ({ ...props }) => <thead className="bg-slate-100/80" {...props} />,
+                                  th: ({ ...props }) => <th className="border border-slate-300 px-4 py-2.5 text-left font-semibold text-slate-700" {...props} />,
+                                  td: ({ ...props }) => <td className="border border-slate-300 px-4 py-2.5 text-slate-600" {...props} />,
+                                }}
+                              >
+                                {msg.text}
+                              </ReactMarkdown>
                             ) : (
                               <span className="italic text-slate-400 animate-pulse">Thinking...</span>
                             )}
