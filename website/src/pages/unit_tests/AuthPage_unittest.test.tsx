@@ -33,11 +33,10 @@ describe('AuthPage (targeted unit tests)', () => {
   it('UT-02: toggles into sign-up mode and shows extra fields', async () => {
     renderAuthPage()
     fireEvent.click(screen.getByRole('button', { name: /sign up/i }))
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Full Name')).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('Staff ID')).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('Phone Number')).toBeInTheDocument()
-    })
+    expect(await screen.findByPlaceholderText(/full name/i)).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText(/staff id/i)).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText(/phone number/i)).toBeInTheDocument()
+  })
   })
 
   it('UT-03: calls onLoginSuccess when login succeeds', async () => {
@@ -53,4 +52,4 @@ describe('AuthPage (targeted unit tests)', () => {
     fireEvent.submit(screen.getByRole('button', { name: /login/i }).closest('form')!)
     await waitFor(() => expect(window.alert).toHaveBeenCalledWith('Login failed: Invalid credentials'))
   })
-})
+
