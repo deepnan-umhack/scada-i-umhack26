@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { vi } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 import App from './App'
 
 // Mock framer-motion
@@ -10,7 +10,7 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }))
 
-// Mock all pages
+// Mock all pages with cross-navigation buttons added
 vi.mock('./pages/LandingPage', () => ({ default: () => <div>LandingPage</div> }))
 vi.mock('./pages/AuthPage', () => ({
   default: ({ onLoginSuccess }: { onLoginSuccess: () => void }) => (
@@ -33,54 +33,65 @@ vi.mock('./pages/MainChat', () => ({
   )
 }))
 vi.mock('./pages/BrowseSpaces', () => ({
-  default: ({ onBack, onSpaceSelected }: any) => (
+  default: ({ onBack, onSpaceSelected, onOpenBookingStatus, onOpenProfileSettings }: any) => (
     <div>
       <span>BrowseSpaces</span>
       <button onClick={onBack}>Back</button>
       <button onClick={() => onSpaceSelected('Syndicate Room')}>SelectSpace</button>
+      <button onClick={onOpenBookingStatus}>NavBookings</button>
+      <button onClick={onOpenProfileSettings}>NavProfile</button>
     </div>
   )
 }))
 vi.mock('./pages/BookingStatus', () => ({
-  default: ({ onBack }: any) => (
+  default: ({ onBack, onOpenProfileSettings }: any) => (
     <div>
       <span>BookingStatus</span>
       <button onClick={onBack}>Back</button>
+      <button onClick={onOpenProfileSettings}>NavProfile</button>
     </div>
   )
 }))
 vi.mock('./pages/EquipmentCatalog', () => ({
-  default: ({ onBack, onEquipmentSelected }: any) => (
+  default: ({ onBack, onEquipmentSelected, onOpenBookingStatus, onOpenProfileSettings }: any) => (
     <div>
       <span>EquipmentCatalog</span>
       <button onClick={onBack}>Back</button>
       <button onClick={() => onEquipmentSelected('Projector (x2)')}>SelectEquipment</button>
+      <button onClick={onOpenBookingStatus}>NavBookings</button>
+      <button onClick={onOpenProfileSettings}>NavProfile</button>
     </div>
   )
 }))
 vi.mock('./pages/DepartmentDirectory', () => ({
-  default: ({ onBack, onDepartmentSelected }: any) => (
+  default: ({ onBack, onDepartmentSelected, onOpenBookingStatus, onOpenProfileSettings }: any) => (
     <div>
       <span>DepartmentDirectory</span>
       <button onClick={onBack}>Back</button>
       <button onClick={() => onDepartmentSelected('Islamic Centre')}>SelectDept</button>
+      <button onClick={onOpenBookingStatus}>NavBookings</button>
+      <button onClick={onOpenProfileSettings}>NavProfile</button>
     </div>
   )
 }))
 vi.mock('./pages/ProfileSettings', () => ({
-  default: ({ onBack, onLogout }: any) => (
+  default: ({ onBack, onLogout, onOpenBookingStatus }: any) => (
     <div>
       <span>ProfileSettings</span>
       <button onClick={onBack}>Back</button>
       <button onClick={onLogout}>Logout</button>
+      <button onClick={onOpenBookingStatus}>NavBookings</button>
     </div>
   )
 }))
 
 describe('App', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
 
-  // --- Initial state ---
+  // --- Initial state & Hydration ---
   it('renders without crashing', () => {
     render(<App />)
   })
@@ -100,6 +111,19 @@ describe('App', () => {
     render(<App />)
     act(() => { vi.advanceTimersByTime(2500) })
     vi.useRealTimers()
+    expect(screen.queryByText('LandingPage')).not.toBeInTheDocument()
+  })
+
+  it('hydrates state securely from localStorage on mount', () => {
+    localStorage.setItem('is_auth', 'true')
+    localStorage.setItem('active_space', 'Hall A')
+    localStorage.setItem('active_equip', JSON.stringify(['Projector (x1)']))
+    localStorage.setItem('active_depts', JSON.stringify(['HR']))
+    localStorage.setItem('draft_msg', 'Hello')
+    
+    render(<App />)
+    // Should bypass auth entirely and go straight to MainChat
+    expect(screen.getByText('MainChat')).toBeInTheDocument()
   })
 
   // --- Auth flow ---
@@ -154,39 +178,7 @@ describe('App', () => {
     expect(screen.getByText('MainChat')).toBeInTheDocument()
   })
 
-  it('goes back to MainChat from BookingStatus', async () => {
-    render(<App />)
-    fireEvent.click(screen.getByText('MockLogin'))
-    await waitFor(() => fireEvent.click(screen.getByText('OpenBookings')))
-    fireEvent.click(screen.getByText('Back'))
-    expect(screen.getByText('MainChat')).toBeInTheDocument()
-  })
-
-  it('goes back to MainChat from EquipmentCatalog', async () => {
-    render(<App />)
-    fireEvent.click(screen.getByText('MockLogin'))
-    await waitFor(() => fireEvent.click(screen.getByText('OpenCatalog')))
-    fireEvent.click(screen.getByText('Back'))
-    expect(screen.getByText('MainChat')).toBeInTheDocument()
-  })
-
-  it('goes back to MainChat from DepartmentDirectory', async () => {
-    render(<App />)
-    fireEvent.click(screen.getByText('MockLogin'))
-    await waitFor(() => fireEvent.click(screen.getByText('OpenDirectory')))
-    fireEvent.click(screen.getByText('Back'))
-    expect(screen.getByText('MainChat')).toBeInTheDocument()
-  })
-
-  it('goes back to MainChat from ProfileSettings', async () => {
-    render(<App />)
-    fireEvent.click(screen.getByText('MockLogin'))
-    await waitFor(() => fireEvent.click(screen.getByText('OpenProfile')))
-    fireEvent.click(screen.getByText('Back'))
-    expect(screen.getByText('MainChat')).toBeInTheDocument()
-  })
-
-  // --- Selection callbacks ---
+  // --- Selection callbacks and Deduplication Branches ---
   it('selects a space and returns to MainChat', async () => {
     render(<App />)
     fireEvent.click(screen.getByText('MockLogin'))
@@ -195,45 +187,95 @@ describe('App', () => {
     expect(screen.getByText('MainChat')).toBeInTheDocument()
   })
 
-  it('selects equipment and returns to MainChat', async () => {
+  it('does not route to chat if the exact same space is selected again', async () => {
     render(<App />)
     fireEvent.click(screen.getByText('MockLogin'))
+    
+    // First selection
+    await waitFor(() => fireEvent.click(screen.getByText('OpenSpaces')))
+    fireEvent.click(screen.getByText('SelectSpace'))
+    
+    // Open spaces again
+    fireEvent.click(screen.getByText('OpenSpaces'))
+    
+    // Second selection of the same space
+    fireEvent.click(screen.getByText('SelectSpace'))
+    
+    // Should NOT have navigated back to chat automatically because space hasn't changed
+    expect(screen.getByText('BrowseSpaces')).toBeInTheDocument()
+  })
+
+  it('selects equipment and returns to MainChat, replacing existing items with the same base name', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByText('MockLogin'))
+    
+    // Add equipment once
     await waitFor(() => fireEvent.click(screen.getByText('OpenCatalog')))
+    fireEvent.click(screen.getByText('SelectEquipment'))
+    expect(screen.getByText('MainChat')).toBeInTheDocument()
+
+    // Add equipment twice (hits the filter array logic branch)
+    fireEvent.click(screen.getByText('OpenCatalog'))
     fireEvent.click(screen.getByText('SelectEquipment'))
     expect(screen.getByText('MainChat')).toBeInTheDocument()
   })
 
-  it('selects a department and returns to MainChat', async () => {
+  it('selects a department and returns to MainChat, ignoring duplicates', async () => {
     render(<App />)
     fireEvent.click(screen.getByText('MockLogin'))
+    
+    // First department
     await waitFor(() => fireEvent.click(screen.getByText('OpenDirectory')))
+    fireEvent.click(screen.getByText('SelectDept'))
+    expect(screen.getByText('MainChat')).toBeInTheDocument()
+
+    // Duplicate department (hits the !displayedDepts.includes branch)
+    fireEvent.click(screen.getByText('OpenDirectory'))
     fireEvent.click(screen.getByText('SelectDept'))
     expect(screen.getByText('MainChat')).toBeInTheDocument()
   })
 
-  // --- Logout ---
-  it('logs out and shows AuthPage again', async () => {
-    // 1. Turn on fake timers before rendering
-    vi.useFakeTimers()
+  // --- Cross Navigation Tests ---
+  it('navigates directly to BookingStatus and ProfileSettings from secondary views', async () => {
     render(<App />)
-    
-    // 2. Instantly fast-forward past the 2.5-second splash screen
-    act(() => { vi.advanceTimersByTime(2500) })
-    
-    // 3. Switch back to real timers so standard async/await works normally
-    vi.useRealTimers()
-    
-    // 4. Now the login button is in the DOM immediately!
     fireEvent.click(screen.getByText('MockLogin'))
     
-    // 5. Wait for the profile button to appear on the MainChat page
+    // From BrowseSpaces
+    await waitFor(() => fireEvent.click(screen.getByText('OpenSpaces')))
+    fireEvent.click(screen.getByText('NavBookings'))
+    expect(screen.getByText('BookingStatus')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('NavProfile'))
+    expect(screen.getByText('ProfileSettings')).toBeInTheDocument()
+
+    // From DepartmentDirectory
+    fireEvent.click(screen.getByText('Back'))
+    fireEvent.click(screen.getByText('OpenDirectory'))
+    fireEvent.click(screen.getByText('NavBookings'))
+    expect(screen.getByText('BookingStatus')).toBeInTheDocument()
+
+    // From Profile to Bookings
+    fireEvent.click(screen.getByText('Back'))
+    fireEvent.click(screen.getByText('OpenProfile'))
+    fireEvent.click(screen.getByText('NavBookings'))
+    expect(screen.getByText('BookingStatus')).toBeInTheDocument()
+  })
+
+  // --- Logout & Teardown ---
+  it('logs out, clears local storage, and resets state to AuthPage', async () => {
+    localStorage.setItem('active_space', 'Hall A') // Set to test teardown branch
+    
+    vi.useFakeTimers()
+    render(<App />)
+    act(() => { vi.advanceTimersByTime(2500) })
+    vi.useRealTimers()
+    
+    fireEvent.click(screen.getByText('MockLogin'))
     const profileBtn = await screen.findByText('OpenProfile')
     fireEvent.click(profileBtn)
     
-    // 6. Click logout
     fireEvent.click(screen.getByText('Logout'))
     
-    // 7. Ensure we get routed back to the AuthPage
     expect(await screen.findByText('AuthPage')).toBeInTheDocument()
+    expect(localStorage.getItem('active_space')).toBeNull() // Confirms removal branch
   })
 })

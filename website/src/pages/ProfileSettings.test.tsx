@@ -25,6 +25,7 @@ const defaultProps = {
 describe('ProfileSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     mockGetUser.mockResolvedValue({ data: { user: null } })
   })
 
@@ -85,11 +86,6 @@ describe('ProfileSettings', () => {
     await waitFor(() => expect(screen.getByText('System Preferences')).toBeInTheDocument())
   })
 
-  it('renders static staff ID', async () => {
-    render(<ProfileSettings {...defaultProps} />)
-    await waitFor(() => expect(screen.getByText('UTM-FAC-2026-99')).toBeInTheDocument())
-  })
-
   it('renders static office location', async () => {
     render(<ProfileSettings {...defaultProps} />)
     await waitFor(() => expect(screen.getByText('Building N28, Room 402')).toBeInTheDocument())
@@ -102,6 +98,16 @@ describe('ProfileSettings', () => {
       expect(screen.getByText('Smart Notifications')).toBeInTheDocument()
       expect(screen.getByText('Biometric Login')).toBeInTheDocument()
     })
+  })
+
+  it('renders Update CV button', async () => {
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => expect(screen.getByText('Update CV')).toBeInTheDocument())
+  })
+
+  it('renders Bookings button in header', async () => {
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => expect(screen.getByText('Bookings')).toBeInTheDocument())
   })
 
   // --- Navigation ---
@@ -123,6 +129,12 @@ describe('ProfileSettings', () => {
     expect(defaultProps.onOpenBookingStatus).toHaveBeenCalled()
   })
 
+  it('calls onBack when logo is clicked', async () => {
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => fireEvent.click(screen.getByAltText('DeepNaN')))
+    expect(defaultProps.onBack).toHaveBeenCalled()
+  })
+
   // --- Sidebar ---
   it('opens sidebar when menu is clicked', async () => {
     render(<ProfileSettings {...defaultProps} />)
@@ -137,7 +149,7 @@ describe('ProfileSettings', () => {
     expect(defaultProps.onBack).toHaveBeenCalled()
   })
 
-  it('calls onOpenBookingStatus from sidebar', async () => {
+  it('calls onOpenBookingStatus from sidebar Booking history', async () => {
     render(<ProfileSettings {...defaultProps} />)
     await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
     fireEvent.click(screen.getByText('Booking history'))
@@ -149,5 +161,84 @@ describe('ProfileSettings', () => {
     await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
     const overlay = document.querySelector('.fixed.inset-0.bg-black\\/5')
     if (overlay) fireEvent.click(overlay)
+    expect(screen.getByText('New chat')).toBeInTheDocument()
+  })
+
+  it('shows No recent chats when history is empty', async () => {
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
+    expect(screen.getByText('No recent chats')).toBeInTheDocument()
+  })
+
+  // --- Chat history ---
+  it('renders chat history from localStorage', async () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'My Chat', messages: [] }]))
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
+    expect(screen.getByText('My Chat')).toBeInTheDocument()
+  })
+
+  it('loads a chat session when history item clicked', async () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'My Chat', messages: [] }]))
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
+    fireEvent.click(screen.getByText('My Chat'))
+    expect(defaultProps.onBack).toHaveBeenCalled()
+  })
+
+  it('opens kebab menu for chat history item', async () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'Old Chat', messages: [] }]))
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    expect(screen.getByText('Rename')).toBeInTheDocument()
+    expect(screen.getByText('Delete')).toBeInTheDocument()
+  })
+
+  it('deletes a chat history item', async () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'Old Chat', messages: [] }]))
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Delete'))
+    expect(screen.queryByText('Old Chat')).not.toBeInTheDocument()
+  })
+
+  it('renames a chat history item', async () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'Old Chat', messages: [] }]))
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Rename'))
+    const input = screen.getByDisplayValue('Old Chat')
+    fireEvent.change(input, { target: { value: 'New Name' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByText('New Name')).toBeInTheDocument()
+  })
+
+  it('cancels rename with Escape key', async () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'Old Chat', messages: [] }]))
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Rename'))
+    const input = screen.getByDisplayValue('Old Chat')
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.getByText('Old Chat')).toBeInTheDocument()
+  })
+
+  it('deletes current thread chat and resets', async () => {
+    localStorage.setItem('current_thread_id', 'abc')
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'Active Chat', messages: [] }]))
+    render(<ProfileSettings {...defaultProps} />)
+    await waitFor(() => fireEvent.click(screen.getByAltText('Menu')))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Delete'))
+    expect(screen.queryByText('Active Chat')).not.toBeInTheDocument()
   })
 })

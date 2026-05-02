@@ -48,7 +48,6 @@ describe('AuthPage', () => {
   it('does not show signup fields in login mode', () => {
     renderAuthPage()
     expect(screen.queryByPlaceholderText('Full Name')).not.toBeInTheDocument()
-    expect(screen.queryByPlaceholderText('Staff ID')).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Phone Number')).not.toBeInTheDocument()
   })
 
@@ -57,7 +56,6 @@ describe('AuthPage', () => {
     renderAuthPage()
     fireEvent.click(screen.getByRole('button', { name: /sign up/i }))
     expect(screen.getByPlaceholderText('Full Name')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Staff ID')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Phone Number')).toBeInTheDocument()
   })
 

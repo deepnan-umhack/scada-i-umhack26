@@ -9,7 +9,11 @@ import { supabase } from '../lib/supabaseClient';
 import ReactMarkdown from 'react-markdown';
 
 const IconRetry = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>
+);
+
+const IconMore = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
 );
 
 interface MainChatProps {
@@ -40,6 +44,13 @@ interface Message {
   };
 }
 
+interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  isCustomTitle?: boolean;
+}
+
 const MainChat: React.FC<MainChatProps> = ({
   requirement,
   onSetRequirement,
@@ -59,13 +70,82 @@ const MainChat: React.FC<MainChatProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [expandedThoughts, setExpandedThoughts] = useState<Record<number, boolean>>({});
-  const [threadId] = useState(() => Math.random().toString(36).substring(7));
-  const [user, setUser] = useState<any>(null);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const savedMessages = localStorage.getItem('chat_messages');
+    return savedMessages ? JSON.parse(savedMessages) : [];
+  });
 
-  const useMockAI = true; // set false when the real AI backend is ready
+  const [threadId, setThreadId] = useState(() => {
+    return localStorage.getItem('current_thread_id') || Math.random().toString(36).substring(7);
+  });
+
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>(() => {
+    const saved = localStorage.getItem('chat_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [expandedThoughts, setExpandedThoughts] = useState<Record<number, boolean>>({});
+  const useMockAI = false;
+
+  useEffect(() => {
+    localStorage.setItem('chat_messages', JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem('current_thread_id', threadId);
+  }, [threadId]);
+
+  useEffect(() => {
+    localStorage.setItem('chat_history', JSON.stringify(chatHistory));
+  }, [chatHistory]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const firstUserMsg = messages.find(m => m.role === 'user');
+      let titleText = firstUserMsg?.text || 'Booking Inquiry';
+
+      if (!firstUserMsg?.text && firstUserMsg?.tags?.space) {
+        titleText = `Booking for ${firstUserMsg.tags.space}`;
+      }
+
+      setChatHistory(prev => {
+        const existingIndex = prev.findIndex(p => p.id === threadId);
+        const existingChat = prev[existingIndex];
+
+        const title = existingChat?.isCustomTitle
+          ? existingChat.title
+          : (titleText.slice(0, 28) + (titleText.length > 28 ? '...' : ''));
+
+        const newSession = {
+          id: threadId,
+          title,
+          messages,
+          isCustomTitle: existingChat?.isCustomTitle
+        };
+
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = newSession;
+          return updated;
+        }
+        return [newSession, ...prev];
+      });
+    }
+  }, [messages, threadId]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openMenuId]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -126,11 +206,8 @@ const MainChat: React.FC<MainChatProps> = ({
         setTimeout(() => {
           setMessages(prev => [...prev, {
             role: 'agent',
-            text: `This is a mock response for UI testing.\n\nYou wrote: "${text || '...'}"`,
-            thoughts: [
-              "Walking through the request and preparing the best answer...",
-              "Checking space availability and equipment catalog...",
-            ],
+            text: `This is a mock response for UI testing.\nYou wrote: "${text || '...'}"`,
+            thoughts: ["Walking through the request and preparing the best answer..."],
             isError: false
           }]);
           setIsLoading(false);
@@ -157,7 +234,7 @@ const MainChat: React.FC<MainChatProps> = ({
         user_id: user?.id ? `${user.id}` : "user_01"
       };
 
-      const response = await fetch("https://scada-i-umhack26-1.onrender.com/chat", {
+      const response = await fetch("https://scada-i-umhack26-production.up.railway.app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadToSend),
@@ -178,6 +255,28 @@ const MainChat: React.FC<MainChatProps> = ({
         const decoder = new TextDecoder();
         let buffer = '';
 
+        const appendThought = (thought: string) => {
+          setMessages(prev => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.role === 'agent') {
+              updated[updated.length - 1] = { ...last, thoughts: [...(last.thoughts ?? []), thought] };
+            }
+            return updated;
+          });
+        };
+
+        const appendText = (token: string) => {
+          setMessages(prev => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.role === 'agent') {
+              updated[updated.length - 1] = { ...last, text: last.text + token };
+            }
+            return updated;
+          });
+        };
+
         const processLine = (line: string) => {
           const raw = line.startsWith('data: ') ? line.slice(6).trim() : line.trim();
           if (!raw || raw === '[DONE]') return;
@@ -188,48 +287,47 @@ const MainChat: React.FC<MainChatProps> = ({
 
             if (type === 'thought') {
               const detail: string = parsed.details ?? parsed.text ?? parsed.content ?? '';
-              if (detail) {
-                setMessages(prev => {
-                  const updated = [...prev];
-                  const last = updated[updated.length - 1];
-                  if (last?.role === 'agent') {
-                    updated[updated.length - 1] = { ...last, thoughts: [...(last.thoughts ?? []), detail] };
-                  }
-                  return updated;
-                });
+              if (detail) appendThought(detail);
+
+            } else if (type === 'action') {
+              const agent: string = parsed.agent ?? 'Agent';
+              const action: string = parsed.action ?? '';
+              const rawDetails: string = parsed.details ?? '';
+
+              let detailText = rawDetails;
+
+              // Try to extract JSON anywhere in the string (handles mixed text + JSON)
+              const jsonMatch = rawDetails.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                try {
+                  const innerJson = JSON.parse(jsonMatch[0]);
+                  // Use .message if present, otherwise pretty-print the whole object
+                  detailText = typeof innerJson.message === 'string'
+                    ? innerJson.message.trim()
+                    : JSON.stringify(innerJson, null, 2);
+                } catch {
+                  detailText = rawDetails;
+                }
               }
+
+              const thoughtEntry = `${agent} — ${action}${detailText ? `\n${detailText}` : ''}`;
+              appendThought(thoughtEntry);
+
             } else if (type === 'final_response') {
               const token: string = parsed.details ?? parsed.text ?? parsed.content ?? parsed.reply ?? '';
-              if (token) {
-                setMessages(prev => {
-                  const updated = [...prev];
-                  const last = updated[updated.length - 1];
-                  if (last?.role === 'agent') updated[updated.length - 1] = { ...last, text: last.text + token };
-                  return updated;
-                });
-              }
+              if (token) appendText(token);
+
             } else if (type === 'done') {
-              // stream complete
+              // stream complete, nothing to do
+
             } else {
               const token: string = parsed.token ?? parsed.text ?? parsed.content ?? parsed.reply ?? raw;
-              if (token) {
-                setMessages(prev => {
-                  const updated = [...prev];
-                  const last = updated[updated.length - 1];
-                  if (last?.role === 'agent') updated[updated.length - 1] = { ...last, text: last.text + token };
-                  return updated;
-                });
-              }
+              if (token) appendText(token);
             }
+
           } catch {
-            if (raw) {
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'agent') updated[updated.length - 1] = { ...last, text: last.text + raw };
-                return updated;
-              });
-            }
+            // Not JSON — append raw as text token
+            if (raw) appendText(raw);
           }
         };
 
@@ -290,7 +388,7 @@ const MainChat: React.FC<MainChatProps> = ({
       role: 'user',
       text: userText,
       tags: tagSnapshot,
-    }] );
+    }]);
 
     onSetRequirement('');
     onSetDisplayedSpace(null);
@@ -308,17 +406,66 @@ const MainChat: React.FC<MainChatProps> = ({
   };
 
   const handleNewChat = () => {
+    if (messages.length === 0) {
+      setIsSidebarOpen(false);
+      return;
+    }
+
+    setThreadId(Math.random().toString(36).substring(7));
     onSetRequirement('');
     setMessages([]);
     onSetDisplayedSpace(null);
     onSetDisplayedEquipment([]);
     onSetDisplayedDepts([]);
     setIsSidebarOpen(false);
+    localStorage.removeItem('chat_messages');
+  };
+
+  const loadChat = (session: ChatSession) => {
+    if (editingChatId === session.id) return;
+
+    setThreadId(session.id);
+    setMessages(session.messages);
+    onSetRequirement('');
+    onSetDisplayedSpace(null);
+    onSetDisplayedEquipment([]);
+    onSetDisplayedDepts([]);
+    setIsSidebarOpen(false);
+  };
+
+  const deleteChat = (e: React.MouseEvent, idToRemove: string) => {
+    e.stopPropagation();
+    setChatHistory(prev => prev.filter(session => session.id !== idToRemove));
+    setOpenMenuId(null);
+    if (idToRemove === threadId) {
+      handleNewChat();
+    }
+  };
+
+  const handleToggleMenu = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setOpenMenuId(prev => prev === id ? null : id);
+  };
+
+  const handleStartRename = (e: React.MouseEvent, chat: ChatSession) => {
+    e.stopPropagation();
+    setEditingChatId(chat.id);
+    setEditTitle(chat.title);
+    setOpenMenuId(null);
+  };
+
+  const handleSaveRename = (e: React.SyntheticEvent, id: string) => {
+    e.stopPropagation();
+    if (editTitle.trim()) {
+      setChatHistory(prev => prev.map(c =>
+        c.id === id ? { ...c, title: editTitle.trim(), isCustomTitle: true } : c
+      ));
+    }
+    setEditingChatId(null);
   };
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
-  // Extracted tag rendering with mobile/desktop layout
   const renderInputTags = (): JSX.Element => {
     const allTags: JSX.Element[] = [];
     if (displayedSpace) {
@@ -347,9 +494,9 @@ const MainChat: React.FC<MainChatProps> = ({
     });
 
     const ghostTags: JSX.Element[] = [];
-    if (!displayedSpace) ghostTags.push(<button key="g-s" onClick={onOpenBrowseSpaces} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0">+ Add Space</button>);
-    if (displayedEquipment.length === 0) ghostTags.push(<button key="g-e" onClick={onOpenEquipmentCatalog} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0">+ Add Equipment</button>);
-    if (displayedDepts.length === 0) ghostTags.push(<button key="g-d" onClick={onOpenDepartmentDirectory} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0">+ Add Dept</button>);
+    if (!displayedSpace) ghostTags.push(<button key="g-s" onClick={() => onOpenBrowseSpaces()} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0 hover:bg-slate-50 transition-colors">+ Add Space</button>);
+    if (displayedEquipment.length === 0) ghostTags.push(<button key="g-e" onClick={() => onOpenEquipmentCatalog()} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0 hover:bg-slate-50 transition-colors">+ Add Equipment</button>);
+    if (displayedDepts.length === 0) ghostTags.push(<button key="g-d" onClick={() => onOpenDepartmentDirectory()} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0 hover:bg-slate-50 transition-colors">+ Add Dept</button>);
 
     const allMobile = [...allTags, ...ghostTags];
     const mRow1 = allMobile.filter((_, idx) => idx === 0 || idx === 1 || (idx > 3 && idx % 2 === 0));
@@ -405,14 +552,75 @@ const MainChat: React.FC<MainChatProps> = ({
               <img src={iconInbox} className="h-5 w-5 opacity-70" /><span>Booking history</span>
             </button>
           </div>
+
           <div className="pt-4 px-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Chats</div>
+
+          {/* DYNAMIC HISTORY NAV WITH MENU */}
           <nav className="flex-1 overflow-y-auto space-y-1 min-h-0 custom-scrollbar text-sm text-gray-600">
-            {['A 5 person room', 'Media interview event', 'AI project showcase room'].map((chat) => (
-              <div key={chat} className="group flex items-center justify-between p-2 hover:bg-white/50 rounded-lg cursor-pointer transition-all active:scale-95">
-                <span className="truncate">{chat}</span><span className="text-gray-400 opacity-60">⋮</span>
-              </div>
-            ))}
+            {chatHistory.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-400 italic">No recent chats</div>
+            ) : (
+              chatHistory.map((chat) => (
+                <div
+                  key={chat.id}
+                  onClick={() => loadChat(chat)}
+                  className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${chat.id === threadId
+                    ? 'bg-blue-50/50 text-blue-700 font-medium'
+                    : 'hover:bg-white/50 text-slate-600'
+                    }`}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden w-full">
+                    <span className="text-lg opacity-50 shrink-0"></span>
+
+                    {editingChatId === chat.id ? (
+                      <input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(e, chat.id);
+                          else if (e.key === 'Escape') setEditingChatId(null);
+                        }}
+                        onBlur={(e) => handleSaveRename(e, chat.id)}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 bg-white border border-blue-300 rounded px-1.5 py-0.5 outline-none text-black w-full text-xs"
+                      />
+                    ) : (
+                      <span className="truncate pr-1">{chat.title}</span>
+                    )}
+                  </div>
+
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={(e) => handleToggleMenu(e, chat.id)}
+                      className={`p-1 rounded-md transition-colors ${openMenuId === chat.id ? 'bg-slate-200 text-slate-700 opacity-100' : 'text-gray-400 hover:text-slate-600 hover:bg-slate-200/50'}`}
+                      title="Options"
+                    >
+                      <IconMore />
+                    </button>
+
+                    {openMenuId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-slate-200 shadow-lg rounded-xl z-50 overflow-hidden text-sm py-1 font-medium">
+                        <button
+                          onClick={(e) => handleStartRename(e, chat)}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700"
+                        >
+                          Rename
+                        </button>
+                        <button
+                          onClick={(e) => deleteChat(e, chat.id)}
+                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </nav>
+
         </div>
         <div className="p-6 border-t border-gray-200/50">
           <button onClick={onOpenProfileSettings} className="flex items-center space-x-3 text-sm font-medium text-gray-600 hover:text-black transition-colors w-full active:scale-95">
@@ -428,9 +636,8 @@ const MainChat: React.FC<MainChatProps> = ({
             <div className="flex items-center gap-4">
               <button
                 onClick={toggleSidebar}
-                className={`p-2 hover:bg-gray-200/50 rounded-lg transition-all duration-300 active:scale-90 ${
-                  isSidebarOpen ? 'md:opacity-100 md:scale-100 opacity-0 scale-0 pointer-events-none md:pointer-events-auto' : 'opacity-100 scale-100'
-                }`}
+                className={`p-2 hover:bg-gray-200/50 rounded-lg transition-all duration-300 active:scale-90 ${isSidebarOpen ? 'md:opacity-100 md:scale-100 opacity-0 scale-0 pointer-events-none md:pointer-events-auto' : 'opacity-100 scale-100'
+                  }`}
               >
                 <img src={iconMenu} alt="Menu" className="h-5 w-auto" />
               </button>
@@ -463,44 +670,47 @@ const MainChat: React.FC<MainChatProps> = ({
               <div className="w-full max-w-3xl mx-auto flex flex-col gap-5 pb-0 mt-auto">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[92%] shadow-sm overflow-hidden w-fit ${msg.role === 'user'
-                      ? 'bg-slate-900 text-white border border-slate-800 rounded-3xl rounded-br-none px-5 py-4'
+
+                    <div className={`max-w-[92%] px-5 py-4 shadow-sm overflow-hidden wrap-break-word w-fit ${msg.role === 'user'
+                      ? 'bg-slate-900 text-white border border-slate-800 rounded-3xl rounded-br-none'
                       : 'bg-white text-[#1A1A1A] border border-slate-200 rounded-3xl rounded-bl-none'
                       }`}>
+
                       {msg.role === 'agent' ? (
                         <>
-                          {/* Thoughts dropdown — inside the bubble */}
                           {msg.thoughts && msg.thoughts.length > 0 && (
-                            <div className="border-b border-slate-100">
+                            <div className="mb-3">
                               <button
-                                onClick={() => setExpandedThoughts(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                                className="w-full flex items-center justify-between gap-2 px-5 py-2.5 text-[11px] font-medium text-slate-400 hover:text-slate-500 hover:bg-slate-50/70 transition-all"
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setExpandedThoughts(prev => ({ ...prev, [idx]: !prev[idx] }));
+                                }}
+                                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-slate-600 transition-colors outline-none"
                               >
-                                <div className="flex items-center gap-1.5">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                                  <span className="italic">Thought for a moment</span>
-                                </div>
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse"></span>
+                                <span className="uppercase tracking-widest">Thought for a moment</span>
                                 <svg
-                                  className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${expandedThoughts[idx] ? 'rotate-180' : ''}`}
+                                  className={`w-3 h-3 ml-1 transition-transform duration-200 ${expandedThoughts[idx] ? 'rotate-180' : ''}`}
                                   viewBox="0 0 16 16" fill="none"
                                 >
-                                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                               </button>
-                              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedThoughts[idx] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                <div className="px-5 pb-3 pt-1 flex flex-col gap-2 border-t border-slate-100/80">
-                                  {msg.thoughts.map((thought, ti) => (
-                                    <div key={ti} className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-400">
-                                      <span className="mt-0.5 shrink-0 text-slate-300">·</span>
-                                      <span className="italic">{thought}</span>
+
+                              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedThoughts[idx] ? 'max-h-[600px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+                                <div className="border-l-2 border-slate-200 pl-3 ml-1 flex flex-col gap-2">
+                                  {msg.thoughts.map((thoughtItem, ti) => (
+                                    <div key={ti} className="text-[11px] leading-relaxed text-slate-500 italic whitespace-pre-wrap font-mono">
+                                      {thoughtItem}
                                     </div>
                                   ))}
                                 </div>
                               </div>
                             </div>
                           )}
-                          {/* Main reply */}
-                          <div className="prose prose-sm max-w-none prose-slate wrap-break-word whitespace-pre-wrap px-5 py-4">
+
+                          <div className="prose prose-sm max-w-none prose-slate wrap-break-word whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                             <ReactMarkdown>{msg.text}</ReactMarkdown>
                           </div>
                         </>
@@ -510,6 +720,7 @@ const MainChat: React.FC<MainChatProps> = ({
                         </div>
                       )}
                     </div>
+
                     {msg.role === 'user' && msg.tags && (
                       <div className="flex flex-wrap justify-end gap-2 mt-2 max-w-[85%]">
                         {msg.tags.space && (
@@ -555,7 +766,7 @@ const MainChat: React.FC<MainChatProps> = ({
           <div className="w-full max-w-3xl mx-auto mt-2 mb-4 shrink-0">
             {requirement === '' && messages.length === 0 && (
               <div className="flex flex-row justify-start md:justify-center gap-2 mb-2 overflow-x-auto no-scrollbar pb-1">
-                {['Book room', 'Book equipment', 'Find the contact','Operating time','View history'].map(label => (
+                {['Book room', 'Book equipment', 'Find the contact', 'Operating time', 'View history'].map(label => (
                   <button key={label} onClick={() => onSetRequirement(label)} className="text-[13px] border border-slate-300 px-5 py-2 rounded-2xl bg-white/50 hover:bg-white text-center transition-all whitespace-nowrap active:scale-95 font-medium text-slate-600 shadow-xs">
                     {label}
                   </button>
@@ -577,13 +788,12 @@ const MainChat: React.FC<MainChatProps> = ({
                     rows={1}
                     className="flex-1 bg-transparent border-none focus:ring-0 text-[16px] outline-none text-slate-700 resize-none placeholder-slate-300 font-normal leading-normal h-auto no-scrollbar max-h-40 overflow-y-hidden py-1 disabled:opacity-50"
                   />
-                  <button onClick={handleSendMessage} disabled={isLoading} className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center disabled:opacity-30">
+                  <button onClick={() => handleSendMessage()} disabled={isLoading} className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center disabled:opacity-30">
                     <span className="text-2xl text-slate-300 rotate-[-15deg] block group-hover:text-blue-500 transition-colors leading-none">➤</span>
                   </button>
                 </div>
               </div>
             </div>
-            {/* Disclaimer: DeepNaN is AI and can make mistakes. */}
           </div>
         </div>
       </main>
