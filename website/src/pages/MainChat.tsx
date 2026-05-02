@@ -7,12 +7,11 @@ import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
 import { supabase } from '../lib/supabaseClient';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 const IconRetry = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>
 );
-
+  
 const IconMore = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
 );
@@ -702,7 +701,6 @@ const MainChat: React.FC<MainChatProps> = ({
                           <div className="prose prose-sm max-w-none prose-slate wrap-break-word whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                             {msg.text ? (
                               <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
                                 components={{
                                   table: ({ ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse border border-slate-300 text-sm" {...props} /></div>,
                                   thead: ({ ...props }) => <thead className="bg-slate-100/80" {...props} />,
