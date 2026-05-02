@@ -506,19 +506,12 @@ const MainChat: React.FC<MainChatProps> = ({
     return (
       <>
         {/* Mobile View */}
-        <div className="flex md:hidden flex-col w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-start transition-all">
-          <div className="flex flex-row gap-2 shrink-0 min-w-max">{mRow1}</div>
-          {mRow2.length > 0 && <div className="flex flex-row gap-2 shrink-0 min-w-max">{mRow2}</div>}
+        <div className="flex md:hidden flex-row w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-center transition-all">
+          {allTags}{ghostTags}
         </div>
         {/* Desktop View */}
-        <div className="hidden md:flex flex-row w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-start transition-all">
-          {allTags.length > 0 && (
-            <div className="flex flex-col gap-2 shrink-0">
-              <div className="flex flex-row gap-2 shrink-0">{allTags.slice(0, dCount)}</div>
-              {allTags.length > dCount && <div className="flex flex-row gap-2 shrink-0">{allTags.slice(dCount)}</div>}
-            </div>
-          )}
-          {ghostTags.length > 0 && <div className="flex flex-row items-center gap-2 shrink-0 h-7">{ghostTags}</div>}
+        <div className="hidden md:flex flex-row w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-center transition-all">
+          {allTags}{ghostTags}
         </div>
       </>
     );
@@ -686,10 +679,9 @@ const MainChat: React.FC<MainChatProps> = ({
                                   e.preventDefault();
                                   setExpandedThoughts(prev => ({ ...prev, [idx]: !prev[idx] }));
                                 }}
-                                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-slate-600 transition-colors outline-none"
+                                className="flex items-center gap-1.5 text-[11px] font- text-slate-400 hover:text-slate-600 transition-colors outline-none"
                               >
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-pulse"></span>
-                                <span className="uppercase tracking-widest">Thought for a moment</span>
+                                <span className="uppercase tracking-widest">Show thoughts</span>
                                 <svg
                                   className={`w-3 h-3 ml-1 transition-transform duration-200 ${expandedThoughts[idx] ? 'rotate-180' : ''}`}
                                   viewBox="0 0 16 16" fill="none"
@@ -711,7 +703,11 @@ const MainChat: React.FC<MainChatProps> = ({
                           )}
 
                           <div className="prose prose-sm max-w-none prose-slate wrap-break-word whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                            {msg.text ? (
+                              <ReactMarkdown>{msg.text}</ReactMarkdown>
+                            ) : (
+                              <span className="italic text-slate-400 animate-pulse">Thinking...</span>
+                            )}
                           </div>
                         </>
                       ) : (
@@ -751,13 +747,6 @@ const MainChat: React.FC<MainChatProps> = ({
                     )}
                   </div>
                 ))}
-                {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-white border border-slate-200 px-5 py-3 rounded-2xl rounded-bl-none shadow-sm text-slate-400">
-                      <span className="animate-pulse italic">Thinking...</span>
-                    </div>
-                  </div>
-                )}
                 <div ref={messagesEndRef} />
               </div>
             )}
