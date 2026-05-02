@@ -6,6 +6,7 @@ Pass threshold: 90%
 
 import pytest
 import requests
+import time
 
 # ─── CONFIG ───────────────────────────────────────────────
 import os
@@ -28,6 +29,7 @@ TEST_CASES = [
 
 TOTAL = len(TEST_CASES)
 THRESHOLD = 0.90
+response_times: list[float] = []
 
 # ─── HELPERS ──────────────────────────────────────────────
 def send_chat(message: str, thread_id: str = THREAD_ID, user_id: str = USER_ID):
@@ -89,8 +91,12 @@ def is_valid_response(response) -> tuple[bool, str]:
 @pytest.mark.parametrize("flow,message", TEST_CASES)
 def test_chat_endpoint(flow, message):
     """Each test case must return HTTP 200 with a valid reply."""
+    start = time.time()
     response = send_chat(message)
     passed, reason = is_valid_response(response)
+    elapsed = time.time() - start
+    response_times.append(elapsed)
+    print(f"\n[{flow}] Response time: {elapsed:.2f}s")
     assert passed, f"[{flow}] FAILED — {reason} | Message: '{message}'"
 
 
@@ -113,5 +119,10 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
     terminalreporter.write_line(f"  Failed      : {failed}")
     terminalreporter.write_line(f"  Minimum     : {int(THRESHOLD * 100)}%")
     terminalreporter.write_line(f"  Result      : {pass_rate * 100:.1f}%")
+    if response_times:
+        avg = sum(response_times) / len(response_times)
+        slowest = max(response_times)
+        terminalreporter.write_line(f"  Avg Response: {avg:.2f}s")
+        terminalreporter.write_line(f"  Slowest     : {slowest:.2f}s")
     terminalreporter.write_line(f"  Status      : {status}")
     terminalreporter.write_sep("=", "")
