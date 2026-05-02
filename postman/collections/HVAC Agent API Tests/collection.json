@@ -1,0 +1,148 @@
+{
+  "info": {
+    "name": "HVAC Agent API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET post (jsonplaceholder)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://jsonplaceholder.typicode.com/posts/1",
+          "protocol": "https",
+          "host": ["jsonplaceholder", "typicode", "com"],
+          "path": ["posts", "1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Has post id\", function () {",
+              "    pm.expect(pm.response.json()).to.have.property(\"id\");",
+              "});",
+              "",
+              "pm.test(\"Has title\", function () {",
+              "    pm.expect(pm.response.json().title).to.be.a(\"string\").and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET departments (Supabase)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "apikey", "value": "{{SUPABASE_ANON_KEY}}" },
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_ANON_KEY}}" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/rest/v1/departments?select=*",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["rest", "v1", "departments"],
+          "query": [{ "key": "select", "value": "*" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response is an array\", function () {",
+              "    pm.expect(pm.response.json()).to.be.an(\"array\");",
+              "});",
+              "",
+              "pm.test(\"Response time under 2000ms\", function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST insert department (Supabase)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "apikey", "value": "{{SUPABASE_ANON_KEY}}" },
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_ANON_KEY}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Prefer", "value": "return=representation" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"Test Department CI\"}"
+        },
+        "url": {
+          "raw": "{{SUPABASE_URL}}/rest/v1/departments",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["rest", "v1", "departments"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Inserted department has name\", function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json[0]).to.have.property(\"name\");",
+              "    pm.collectionVariables.set(\"inserted_id\", json[0].id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "DELETE test department (Supabase)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "apikey", "value": "{{SUPABASE_ANON_KEY}}" },
+          { "key": "Authorization", "value": "Bearer {{SUPABASE_ANON_KEY}}" }
+        ],
+        "url": {
+          "raw": "{{SUPABASE_URL}}/rest/v1/departments?name=eq.Test Department CI",
+          "host": ["{{SUPABASE_URL}}"],
+          "path": ["rest", "v1", "departments"],
+          "query": [{ "key": "name", "value": "eq.Test Department CI" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200 or 204\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
