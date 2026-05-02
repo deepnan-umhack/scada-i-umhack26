@@ -29,18 +29,18 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/agents
         run: |
           pytest -q -s \
-            agents/booking_agent/tests/unit_tests/check_equipment_availability_unittest.py \
-            agents/booking_agent/tests/unit_tests/check_room_availability_unittest.py \
-            agents/booking_agent/tests/unit_tests/create_booking_record_unittest.py \
-            agents/booking_agent/tests/unit_tests/get_room_directory_unittest.py \
-            agents/esg_agent/tests/unit_tests/analyze_hvac_compliance_unittest.py \
-            agents/esg_agent/tests/unit_tests/generate_esg_report_unittest.py \
-            agents/esg_agent/tests/unit_tests/policy_retriever_unittest.py \
-            agents/hvac_agent/tests/test_parse_target_time.py \
-            agents/hvac_agent/tests/test_select_nearest_hour_index.py \
+            agents/booking_agent/tools/unit_tests/check_equipment_availability_unittest.py \
+            agents/booking_agent/tools/unit_tests/check_room_availability_unittest.py \
+            agents/booking_agent/tools/unit_tests/create_booking_record_unittest.py \
+            agents/booking_agent/tools/unit_tests/get_room_directory_unittest.py \
+            agents/esg_agent/tools/unit_tests/analyze_hvac_compliance_unittest.py \
+            agents/esg_agent/tools/unit_tests/generate_esg_report_unittest.py \
+            agents/esg_agent/tools/unit_tests/policy_retriever_unittest.py \
+            agents/hvac_agent/tests/unit_tests/parse_target_time_unittest.py \
+            agents/hvac_agent/tests/unit_tests/select_nearest_hour_index_unittest.py \
             agents/hvac_agent/tests/unit_tests/calculate_weather_aware_precool_start_unittest.py \
             agents/hvac_agent/tests/unit_tests/run_hvac_request_unittest.py \
-            agents/hvac_agent/tests/unit_tests/select_nearest_hour_index_unittest.py
+            
 
   frontend-unit-tests:
     name: Frontend unit tests (vitest)
@@ -64,6 +64,6 @@ jobs:
         working-directory: website
         run: |
           npx vitest run \
-            src/pages/AuthPage_unittest.test.tsx \
-            src/pages/BrowseSpaces_unittest.test.tsx \
-            src/pages/LandingPage_unittest.test.tsx
+            src/pages/unit_tests/AuthPage_unittest.test.tsx \
+            src/pages/unit_tests/BrowseSpaces_unittest.test.tsx \
+            src/pages/unit_tests/LandingPage_unittest.test.tsx
