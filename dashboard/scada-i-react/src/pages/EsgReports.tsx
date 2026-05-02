@@ -6,9 +6,9 @@ import {
 import { Link } from "react-router-dom";
 import { Document, Page, pdfjs } from 'react-pdf';
 import pdfIcon from "../assets/pdf_icon.png";
-import testPicture from "../assets/test_picture.jpeg";
+import testPicture from "../assets/instruction_1.jpg";
 import instructPicture1 from "../assets/instruction_1.jpeg";
-import instructPicture3 from "../assets/instruction_3.jpeg";
+import instructPicture3 from "../assets/instruction_3.jpg";
 
 // --- Set up the pdfjs worker ---
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -309,7 +309,7 @@ export default function EsgReports() {
           <nav className="flex items-center space-x-2 text-sm font-medium text-gray-500 mb-2">
             <Link to="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
             <span className="text-gray-400 px-1">•</span>
-            <span className="text-indigo-600">ESG Reports</span>
+            <span className="text-[#0000FF] underline">ESG Reports</span>
           </nav>
           <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">SCADA-i Generative Reports</h1>
           <p className="text-sm text-gray-500 mt-1">Monitor real-time environment & energy metrics</p>
