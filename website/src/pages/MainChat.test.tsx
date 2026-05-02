@@ -180,6 +180,43 @@ describe('MainChat Component', () => {
     await waitFor(() => expect(screen.getByText('This is an AI response.')).toBeInTheDocument());
   });
 
+  // --- Markdown Table Rendering ---
+  it('renders markdown tables correctly using custom components and remark-gfm', async () => {
+    const tableMarkdown = `
+| Column A | Column B |
+| :--- | :--- |
+| Data 1 | Data 2 |
+`;
+    (global.fetch as Mock).mockResolvedValueOnce({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ reply: tableMarkdown }),
+    });
+
+    render(<MainChat {...{ ...mockProps, requirement: 'Show me a table' }} />);
+    fireEvent.click(screen.getByText('➤').closest('button')!);
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+    await waitFor(() => {
+      // Verify the Table rendered as an HTML element
+      const table = screen.getByRole('table');
+      expect(table).toBeInTheDocument();
+      // Verify custom Tailwind classes got applied to the table
+      expect(table).toHaveClass('w-full border-collapse border border-slate-300 text-sm');
+
+      // Verify Table Header
+      const colA = screen.getByRole('columnheader', { name: 'Column A' });
+      expect(colA).toBeInTheDocument();
+      expect(colA).toHaveClass('border border-slate-300 px-4 py-2.5 text-left font-semibold text-slate-700');
+
+      // Verify Table Cell
+      const data1 = screen.getByRole('cell', { name: 'Data 1' });
+      expect(data1).toBeInTheDocument();
+      expect(data1).toHaveClass('border border-slate-300 px-4 py-2.5 text-slate-600');
+    });
+  });
+
   it('handles server returning no reply field gracefully', async () => {
     (global.fetch as Mock).mockResolvedValueOnce({
       ok: true,
@@ -685,7 +722,7 @@ describe('MainChat Component', () => {
 
   // --- isLoading disables send button ---
   it('disables send button while loading', async () => {
-    (global.fetch as Mock).mockImplementationOnce(() => new Promise(() => {}));
+    (global.fetch as Mock).mockImplementationOnce(() => new Promise(() => { }));
     render(<MainChat {...{ ...mockProps, requirement: 'Hello' }} />);
     const btn = screen.getByText('\u27a4').closest('button')!;
     fireEvent.click(btn);
@@ -698,9 +735,9 @@ describe('MainChat Component', () => {
     const longMessage = 'A'.repeat(50);
     render(<MainChat {...{ ...mockProps, requirement: longMessage }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    
+
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-    
+
     const history = JSON.parse(localStorage.getItem('chat_history') || '[]');
     expect(history[0].title).toBe('A'.repeat(28) + '...');
   });
@@ -708,9 +745,9 @@ describe('MainChat Component', () => {
   it('uses space tag for title when message text is empty', async () => {
     render(<MainChat {...{ ...mockProps, requirement: '', displayedSpace: 'Boardroom' }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    
+
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-    
+
     const history = JSON.parse(localStorage.getItem('chat_history') || '[]');
     expect(history[0].title).toBe('Booking for Boardroom');
   });
@@ -737,13 +774,13 @@ describe('MainChat Component', () => {
     // Force scrollHeight > 160px
     Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 200 });
     rerender(<MainChat {...mockProps} requirement="very long text that causes wrap" />);
-    
+
     expect(textarea.style.overflowY).toBe('auto');
 
     // Force scrollHeight <= 160px
     Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 100 });
     rerender(<MainChat {...mockProps} requirement="short again" />);
-    
+
     expect(textarea.style.overflowY).toBe('hidden');
   });
 
@@ -761,10 +798,10 @@ describe('MainChat Component', () => {
       headers: { get: () => 'text/event-stream' },
       body: stream,
     });
-    
+
     render(<MainChat {...{ ...mockProps, requirement: 'ActionNoMessageJson' }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    
+
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByText(/otherKey/)).toBeInTheDocument());
   });
@@ -783,10 +820,10 @@ describe('MainChat Component', () => {
       headers: { get: () => 'text/event-stream' },
       body: stream,
     });
-    
+
     render(<MainChat {...{ ...mockProps, requirement: 'ActionInvalidJson' }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    
+
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
     // Should render the raw text rather than crashing
     await waitFor(() => expect(screen.getByText(/invalid: json/)).toBeInTheDocument());
@@ -795,7 +832,7 @@ describe('MainChat Component', () => {
   it('scrolls to bottom when messages update', async () => {
     render(<MainChat {...{ ...mockProps, requirement: 'Scroll test' }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    
+
     await waitFor(() => {
       // Validates that the ref triggers the mocked prototype method
       expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
@@ -808,12 +845,12 @@ describe('MainChat Component', () => {
     const history = [{ id: 'thread-custom', title: 'My Custom Title', messages: [], isCustomTitle: true }];
     localStorage.setItem('chat_history', JSON.stringify(history));
     localStorage.setItem('current_thread_id', 'thread-custom');
-    
+
     render(<MainChat {...{ ...mockProps, requirement: 'Second message' }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    
+
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-    
+
     const newHistory = JSON.parse(localStorage.getItem('chat_history') || '[]');
     const targetHistory = newHistory.find((h: any) => h.id === 'thread-custom');
     expect(targetHistory.title).toBe('My Custom Title');
@@ -837,9 +874,9 @@ describe('MainChat Component', () => {
   it('uses default Booking Inquiry title when message text is empty and no space tag is present', async () => {
     render(<MainChat {...{ ...mockProps, requirement: '', displayedEquipment: ['Projector'] }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    
+
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-    
+
     const history = JSON.parse(localStorage.getItem('chat_history') || '[]');
     expect(history[0].title).toBe('Booking Inquiry');
   });
@@ -850,19 +887,19 @@ describe('MainChat Component', () => {
       { id: 'active-thread', title: 'Active', messages: activeMessages },
       { id: 'bg-thread', title: 'Background', messages: [] }
     ];
-    
+
     // Set the full environment state so the chat window doesn't boot into the empty state
     localStorage.setItem('chat_history', JSON.stringify(history));
     localStorage.setItem('current_thread_id', 'active-thread');
-    localStorage.setItem('chat_messages', JSON.stringify(activeMessages)); 
-    
+    localStorage.setItem('chat_messages', JSON.stringify(activeMessages));
+
     render(<MainChat {...mockProps} />);
     fireEvent.click(screen.getByAltText('Menu').closest('button')!);
-    
+
     const menus = document.querySelectorAll('[title="Options"]');
     fireEvent.click(menus[1]); // Open menu for the Background thread
     fireEvent.click(screen.getByText('Delete'));
-    
+
     expect(screen.queryByText('Background')).not.toBeInTheDocument();
     // Because the active thread has messages, it shouldn't show the empty state welcome screen
     expect(screen.queryByText('Planning an event?')).not.toBeInTheDocument();
@@ -871,10 +908,10 @@ describe('MainChat Component', () => {
   it('closes the sidebar when clicking the mobile overlay', () => {
     render(<MainChat {...mockProps} />);
     fireEvent.click(screen.getByAltText('Menu').closest('button')!);
-    
+
     const overlay = document.querySelector('.bg-black\\/5') as HTMLElement;
     expect(overlay).toBeInTheDocument();
-    
+
     // Simulate clicking outside the sidebar
     fireEvent.click(overlay);
     expect(document.querySelector('.bg-black\\/5')).not.toBeInTheDocument();
@@ -885,15 +922,15 @@ describe('MainChat Component', () => {
     localStorage.setItem('chat_history', JSON.stringify(history));
     render(<MainChat {...mockProps} />);
     fireEvent.click(screen.getByAltText('Menu').closest('button')!);
-    
+
     const kebab = document.querySelector('[title="Options"]') as HTMLElement;
     fireEvent.click(kebab);
     fireEvent.click(screen.getByText('Rename'));
-    
+
     const input = screen.getByDisplayValue('Old Chat');
     fireEvent.change(input, { target: { value: '   ' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    
+
     // Reverts to the previous valid title
     expect(screen.getByText('Old Chat')).toBeInTheDocument();
   });
@@ -908,15 +945,15 @@ describe('MainChat Component', () => {
     // Override the mocked user session for this specific test
     const { supabase } = await import('../lib/supabaseClient');
     (supabase.auth.getUser as Mock).mockResolvedValueOnce({ data: { user: null } });
-    
+
     render(<MainChat {...{ ...mockProps, requirement: 'No User Test' }} />);
-    
+
     // Allow the initial getUser mount effect to flush
-    await waitFor(() => {});
-    
+    await waitFor(() => { });
+
     fireEvent.click(screen.getByText('➤').closest('button')!);
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
-    
+
     const body = JSON.parse((global.fetch as Mock).mock.calls[0][1].body);
     expect(body.user_id).toBe('user_01'); // Checks the ternary fallback
   });
@@ -938,7 +975,7 @@ describe('MainChat Component', () => {
     });
     render(<MainChat {...{ ...mockProps, requirement: 'ChunkTest' }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
-    
+
     await waitFor(() => expect(screen.getByText('Partial Chunk')).toBeInTheDocument());
   });
 
