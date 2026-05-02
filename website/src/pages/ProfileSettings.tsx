@@ -7,15 +7,63 @@ import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
 import { supabase } from '../lib/supabaseClient';
 
+const IconMore = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
+);
+
 interface ProfileProps {
   onBack: () => void;
   onOpenBookingStatus: () => void;
   onLogout: () => void;
 }
 
+// Interfaces needed for Chat History
+interface Message {
+  role: 'user' | 'agent';
+  text: string;
+  thought?: string;
+  isError?: boolean;
+  tags?: {
+    space: string | null;
+    equipment: string[];
+    depts: string[];
+  };
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  isCustomTitle?: boolean;
+}
+
 const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+
+  // --- CHAT HISTORY STATES ---
+  const [threadId, setThreadId] = useState(() => localStorage.getItem('current_thread_id') || '');
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>(() => {
+    const saved = localStorage.getItem('chat_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+
+  // Sync history changes (deletions/renames) to localStorage
+  useEffect(() => {
+    localStorage.setItem('chat_history', JSON.stringify(chatHistory));
+  }, [chatHistory]);
+
+  // Close the 3-dots menu if user clicks anywhere outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openMenuId]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -25,16 +73,67 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
     getUser();
   }, []);
 
-  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
-
+  // --- HISTORY MANAGEMENT FUNCTIONS ---
   const handleNewChat = () => {
     setIsSidebarOpen(false);
-    onBack();
+    localStorage.removeItem('chat_messages');
+    const newId = Math.random().toString(36).substring(7);
+    localStorage.setItem('current_thread_id', newId); // Force new thread
+    setThreadId(newId);
+    onBack(); // Return to MainChat
   };
+
+  const loadChat = (session: ChatSession) => {
+    if (editingChatId === session.id) return;
+
+    // Set up localStorage so MainChat loads this specific session
+    localStorage.setItem('current_thread_id', session.id);
+    localStorage.setItem('chat_messages', JSON.stringify(session.messages));
+    setThreadId(session.id);
+
+    setIsSidebarOpen(false);
+    onBack(); // Return to MainChat
+  };
+
+  const deleteChat = (e: React.MouseEvent, idToRemove: string) => {
+    e.stopPropagation();
+    setChatHistory(prev => prev.filter(session => session.id !== idToRemove));
+    setOpenMenuId(null);
+    if (idToRemove === threadId) {
+      localStorage.removeItem('chat_messages');
+      const newId = Math.random().toString(36).substring(7);
+      localStorage.setItem('current_thread_id', newId);
+      setThreadId(newId);
+    }
+  };
+
+  const handleToggleMenu = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setOpenMenuId(prev => prev === id ? null : id);
+  };
+
+  const handleStartRename = (e: React.MouseEvent, chat: ChatSession) => {
+    e.stopPropagation();
+    setEditingChatId(chat.id);
+    setEditTitle(chat.title);
+    setOpenMenuId(null);
+  };
+
+  const handleSaveRename = (e: React.SyntheticEvent, id: string) => {
+    e.stopPropagation();
+    if (editTitle.trim()) {
+      setChatHistory(prev => prev.map(c =>
+        c.id === id ? { ...c, title: editTitle.trim(), isCustomTitle: true } : c
+      ));
+    }
+    setEditingChatId(null);
+  };
+
+  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
   return (
     <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden">
-      
+
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/5 z-70 md:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
@@ -54,42 +153,107 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
             <input type="text" placeholder="Search" className="w-full bg-white rounded-full py-2.5 pl-11 pr-4 text-base border-none shadow-sm outline-none" />
           </div>
           <div className="space-y-2">
-            <button onClick={handleNewChat} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
+            <button type="button" onClick={handleNewChat} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
               <img src={iconEdit} className="h-5 w-5 opacity-70" /><span>New chat</span>
             </button>
-            <button onClick={onOpenBookingStatus} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
+            <button type="button" onClick={onOpenBookingStatus} className="w-full flex items-center space-x-3 p-2 hover:bg-white/50 rounded-lg transition-all text-sm font-medium text-gray-700 active:scale-95">
               <img src={iconInbox} className="h-5 w-5 opacity-70" /><span>Booking history</span>
             </button>
           </div>
+
           <div className="pt-4 px-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Chats</div>
+
+          {/* DYNAMIC HISTORY NAV WITH MENU */}
           <nav className="flex-1 overflow-y-auto space-y-1 min-h-0 custom-scrollbar text-sm text-gray-600">
-            {['A 5 person room', 'Media interview event', 'AI project showcase room'].map((chat) => (
-              <div key={chat} className="group flex items-center justify-between p-2 hover:bg-white/50 rounded-lg cursor-pointer transition-all active:scale-95">
-                <span className="truncate">{chat}</span><span className="text-gray-400 opacity-60">⋮</span>
-              </div>
-            ))}
+            {chatHistory.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-400 italic">No recent chats</div>
+            ) : (
+              chatHistory.map((chat) => (
+                <div
+                  key={chat.id}
+                  onClick={() => loadChat(chat)}
+                  className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${chat.id === threadId
+                    ? 'bg-blue-50/50 text-blue-700 font-medium'
+                    : 'hover:bg-white/50 text-slate-600'
+                    }`}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden w-full">
+                    <span className="text-lg opacity-50 shrink-0"></span>
+
+                    {/* Rename Input vs Normal Title */}
+                    {editingChatId === chat.id ? (
+                      <input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(e, chat.id);
+                          else if (e.key === 'Escape') setEditingChatId(null);
+                        }}
+                        onBlur={(e) => handleSaveRename(e, chat.id)}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 bg-white border border-blue-300 rounded px-1.5 py-0.5 outline-none text-black w-full text-xs"
+                      />
+                    ) : (
+                      <span className="truncate pr-1">{chat.title}</span>
+                    )}
+                  </div>
+
+                  {/* Kebab Menu Container */}
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleMenu(e, chat.id)}
+                      className={`p-1 rounded-md transition-colors ${openMenuId === chat.id ? 'bg-slate-200 text-slate-700 opacity-100' : 'text-gray-400 hover:text-slate-600 hover:bg-slate-200/50'}`}
+                      title="Options"
+                    >
+                      <IconMore />
+                    </button>
+
+                    {/* Dropdown Box */}
+                    {openMenuId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-slate-200 shadow-lg rounded-xl z-50 overflow-hidden text-sm py-1 font-medium">
+                        <button
+                          type="button"
+                          onClick={(e) => handleStartRename(e, chat)}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700"
+                        >
+                          Rename
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => deleteChat(e, chat.id)}
+                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </nav>
         </div>
         <div className="p-6 border-t border-gray-200/50">
-          <button onClick={() => setIsSidebarOpen(false)} className="flex items-center space-x-3 text-sm font-medium text-gray-600 hover:text-black transition-colors w-full active:scale-95">
+          <button type="button" onClick={() => setIsSidebarOpen(false)} className="flex items-center space-x-3 text-sm font-medium text-gray-600 hover:text-black transition-colors w-full active:scale-95">
             <img src={iconSettings} className="h-5 w-5 opacity-70" /><span>Settings & Profile</span>
           </button>
         </div>
       </aside>
 
       <main className="flex-1 flex flex-col relative min-w-0">
-        
+
         {/* Header*/}
         <header className="sticky top-0 z-50 bg-[#F0F4F8]">
           <div className="flex items-center justify-between px-4 md:px-10 py-3">
             <div className="flex items-center gap-4">
               <button
                 onClick={toggleSidebar}
-                className={`p-2 hover:bg-gray-200/50 rounded-lg transition-all duration-300 active:scale-90 ${
-                  isSidebarOpen
+                className={`p-2 hover:bg-gray-200/50 rounded-lg transition-all duration-300 active:scale-90 ${isSidebarOpen
                     ? 'md:opacity-100 md:scale-100 opacity-0 scale-0 pointer-events-none md:pointer-events-auto'
                     : 'opacity-100 scale-100'
-                }`}
+                  }`}
               >
                 <img src={iconMenu} alt="Menu" className="h-5 w-auto" />
               </button>
@@ -98,8 +262,8 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
                 <img src={logo} alt="DeepNaN" className="h-6 w-auto" />
               </button>
             </div>
-            <button 
-              onClick={onOpenBookingStatus} 
+            <button
+              onClick={onOpenBookingStatus}
               className="bg-white px-5 py-2 rounded-full shadow-sm flex items-center space-x-2 hover:bg-gray-50 transition-all active:scale-95 font-bold uppercase tracking-widest text-[11px] text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-cyan-400"
             >
               Bookings
@@ -107,7 +271,7 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
 
           </div>
         </header>
-        
+
         {/* Main */}
         <div className="flex-1 flex flex-col px-4 md:px-10 overflow-y-auto no-scrollbar">
           <div className="max-w-5xl mx-auto w-full">
@@ -120,9 +284,9 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
                 <span className="text-lg text-slate-400 group-hover:text-slate-600 transition-colors block leading-none px-1">✕</span>
               </button>
             </div>
-            
+
             <div className="space-y-6 pb-20">
-              
+
               {/* Hero Card */}
               <div className="bg-white rounded-[3rem] p-10 md:p-14 shadow-sm border border-slate-100/50 flex flex-col md:flex-row items-center gap-12">
                 <div className="relative shrink-0">
@@ -137,9 +301,9 @@ const ProfileSettings: React.FC<ProfileProps> = ({ onBack, onOpenBookingStatus, 
                   <h2 className="text-4xl font-bold text-slate-900">{user?.user_metadata?.full_name || 'Dr. Username'}</h2>
                   <p className="text-xl text-slate-500 font-medium mt-1">Senior Lecturer • Faculty of Computing</p>
                   <div className="mt-6 flex flex-wrap gap-2 justify-center md:justify-start">
-                     {['Artificial Intelligence', 'Machine Learning', 'Logistics AI'].map(tag => (
-                       <span key={tag} className="px-4 py-1.5 bg-slate-50 text-slate-400 text-[11px] font-bold rounded-full border border-slate-100 uppercase tracking-widest">{tag}</span>
-                     ))}
+                    {['Artificial Intelligence', 'Machine Learning', 'Logistics AI'].map(tag => (
+                      <span key={tag} className="px-4 py-1.5 bg-slate-50 text-slate-400 text-[11px] font-bold rounded-full border border-slate-100 uppercase tracking-widest">{tag}</span>
+                    ))}
                   </div>
                   <div className="mt-10 flex flex-wrap justify-center md:justify-start gap-4">
                     <button className="px-12 py-4 bg-slate-900 text-white rounded-2xl text-[13px] font-bold uppercase tracking-widest active:scale-95 transition-all shadow-sm">Update CV</button>
