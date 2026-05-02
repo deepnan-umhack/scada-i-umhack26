@@ -1,9 +1,12 @@
 # SCADA-i by Team DEEP NaN (UMHackathon 2026)
 
+![Agent Tests](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/agent_tests.yml/badge.svg)
 ![Frontend Checks](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/frontend-checks.yml/badge.svg)
+![Postman Tests](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/postman-test.yml/badge.svg)
 ![Regression Test](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/regression.yml/badge.svg)
 ![Test Coverage](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/test-converage.yml/badge.svg)
-![Unit Tests & Guardrail Safety](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/unit-tests.yml/badge.svg)
+![Unit Tests](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/unit-tests.yml/badge.svg)
+![Website Tests](https://github.com/deepnan-umhack/scada-i-umhack26/actions/workflows/website_tests.yml/badge.svg)
 
 * **Web Dashboard:** [https://scada-i.netlify.app/dashboard](https://scada-i.netlify.app/dashboard)
 * **Mobile Application:** [https://deep-nan.netlify.app/](https://deep-nan.netlify.app/)
