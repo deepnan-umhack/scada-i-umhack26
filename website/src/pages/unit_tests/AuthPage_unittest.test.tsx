@@ -1,11 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
-import AuthPage from './AuthPage'
+import AuthPage from '../AuthPage'
 
-vi.mock('../assets/LogoS.svg', () => ({ default: 'logo.svg' }))
+vi.mock('../../assets/LogoS.svg', () => ({ default: 'logo.svg' }))
 
 const mockSignIn = vi.fn()
-vi.mock('../lib/supabaseClient', () => ({
+vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     auth: {
       signInWithPassword: (...args: any[]) => mockSignIn(...args),
