@@ -182,20 +182,21 @@ const MainChat: React.FC<MainChatProps> = ({
   };
 
   const handleRetry = async () => {
-    if (isLoading) return;
+  if (isLoading) return;
 
-    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-    if (!lastUserMsg) return;
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+  if (!lastUserMsg) return;
 
-    setMessages(prev => {
-      const last = prev[prev.length - 1];
-      if (last?.role === 'agent') {
-        return prev.slice(0, -1);
-      }
-      return prev;
-    });
+  // Remove last agent message synchronously by computing new array directly
+  const trimmedMessages = messages[messages.length - 1]?.role === 'agent'
+    ? messages.slice(0, -1)
+    : messages;
 
-    await sendToAI(lastUserMsg.text, lastUserMsg.tags || { space: null, equipment: [], depts: [] });
+  setMessages(trimmedMessages); // set the trimmed list
+  setIsLoading(true);           // show loading state immediately
+
+  // Now sendToAI will append the new agent bubble on top of trimmedMessages
+  await sendToAI(lastUserMsg.text, lastUserMsg.tags || { space: null, equipment: [], depts: [] });
   };
 
   const sendToAI = async (text: string, tags: any) => {
