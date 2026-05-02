@@ -1,0 +1,25 @@
+$kind: http-request
+name: 'GET departments (Supabase)'
+url: '{{SUPABASE_URL}}/rest/v1/departments?select=*'
+method: GET
+headers:
+  - key: apikey
+    value: '{{SUPABASE_ANON_KEY}}'
+  - key: Authorization
+    value: 'Bearer {{SUPABASE_ANON_KEY}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response is an array", function () {
+          pm.expect(pm.response.json()).to.be.an("array");
+      });
+
+      pm.test("Response time under 2000ms", function () {
+          pm.expect(pm.response.responseTime).to.be.below(2000);
+      });
+order: 1777662446544

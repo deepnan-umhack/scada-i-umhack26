@@ -1,10 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { 
-  FileText, Calendar, Download, Plus, X, CheckCircle2, ChevronRight, ChevronLeft, Search 
+  Calendar, Download, Plus, X, CheckCircle2, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Search, Clock
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Document, Page, pdfjs } from 'react-pdf';
+import pdfIcon from "../assets/pdf_icon.png";
+import testPicture from "../assets/instruction_1.jpg";
+import instructPicture1 from "../assets/instruction_1.jpeg";
+import instructPicture3 from "../assets/instruction_3.jpg";
 
 // --- Set up the pdfjs worker ---
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -96,13 +100,18 @@ const ScrollWheelPicker = ({ values, selected, onChange, label }: { values: stri
 
 export default function EsgReports() {
   const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'success'>('idle');
+  const [generationStatusText, setGenerationStatusText] = useState("Initializing generation..."); // Added state for dynamic text
   
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Modals state
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+
   const [startDate, setStartDate] = useState("2026-01-01");
   const [startHour, setStartHour] = useState("12");
   const [startMinute, setStartMinute] = useState("00");
   const [startAmpm, setStartAmpm] = useState("AM");
   const [specifyStartTime, setSpecifyStartTime] = useState(false);
+  
   const [endDate, setEndDate] = useState("2026-01-01");
   const [endHour, setEndHour] = useState("11");
   const [endMinute, setEndMinute] = useState("59");
@@ -120,6 +129,48 @@ export default function EsgReports() {
     else if (ampm === 'PM' && h24 !== 12) h24 += 12;
     return `${parseInt(m)}/${parseInt(d)}/${y} ${String(h24).padStart(2,'0')}:${minute}`;
   };
+
+  // --- Calculate Duration ---
+  const calculatedDuration = useMemo(() => {
+    try {
+      const startStr = formatDateTime(
+        startDate, 
+        specifyStartTime ? startHour : '12', 
+        specifyStartTime ? startMinute : '00', 
+        specifyStartTime ? startAmpm : 'AM'
+      );
+      const endStr = formatDateTime(
+        endDate, 
+        specifyEndTime ? endHour : '11', 
+        specifyEndTime ? endMinute : '59', 
+        specifyEndTime ? endAmpm : 'PM'
+      );
+      
+      const startDt = new Date(startStr);
+      const endDt = new Date(endStr);
+      
+      const diffMs = endDt.getTime() - startDt.getTime();
+      
+      if (isNaN(diffMs) || diffMs < 0) {
+        return "Invalid period";
+      }
+      
+      const diffHours = diffMs / (1000 * 60 * 60);
+      const days = Math.floor(diffHours / 24);
+      const hours = Math.floor(diffHours % 24);
+      
+      if (days === 0 && hours === 0) return "< 1 hour";
+      
+      const dayParts = [];
+      if (days > 0) dayParts.push(`${days} day${days > 1 ? 's' : ''}`);
+      if (hours > 0) dayParts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+      
+      return dayParts.join(', ');
+    } catch (e) {
+      return "Calculating...";
+    }
+  }, [startDate, startHour, startMinute, startAmpm, specifyStartTime, endDate, endHour, endMinute, endAmpm, specifyEndTime]);
+
   
   const [dbReports, setDbReports] = useState<ESGReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -159,18 +210,19 @@ export default function EsgReports() {
     fetchReports();
   }, []);
 
-
-
   const handleGenerateReport = () => {
-    setIsModalOpen(true);
+    setIsGuideOpen(true);
   };
 
   const submitGenerateReport = async () => {
-    setIsModalOpen(false);
+    if (calculatedDuration === "Invalid period") return;
+
+    setIsGenerateOpen(false);
     setGenerationState('generating');
+    setGenerationStatusText('Initializing generation...');
 
     try {
-      const response = await fetch("https://scada-i-umhack26-1.onrender.com/chat", {
+      const response = await fetch("https://scada-i-umhack26-production.up.railway.app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -180,11 +232,51 @@ export default function EsgReports() {
         })
       });
       
-      const data = await response.json();
-      console.log("Report Generation Output:", data);
-      
-      setGenerationState('success');
-      await fetchReports();
+      if (!response.ok) {
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("ReadableStream not supported in this browser.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process each line as it arrives
+        let newlineIndex;
+        while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
+          const line = buffer.slice(0, newlineIndex).trim();
+          buffer = buffer.slice(newlineIndex + 1);
+
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.replace('data: ', '').trim();
+            if (!jsonStr) continue;
+
+            try {
+              const data = JSON.parse(jsonStr);
+              
+              if (data.type === 'thought' || data.type === 'action') {
+                // Update the state with the current agent and their action
+                setGenerationStatusText(`${data.agent}: ${data.action}...`);
+              } else if (data.type === 'done') {
+                setGenerationState('success');
+                await fetchReports(); // Auto-refresh reports on completion
+              }
+            } catch (err) {
+              console.error("Error parsing stream chunk:", err, line);
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error("Failed to trigger report generation:", err);
       setGenerationState('idle');
@@ -205,7 +297,7 @@ export default function EsgReports() {
   // react-pdf load handler
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-    setPageNumber(1); // Reset to page 1 on new document open
+    setPageNumber(1); 
   };
 
   return (
@@ -217,7 +309,7 @@ export default function EsgReports() {
           <nav className="flex items-center space-x-2 text-sm font-medium text-gray-500 mb-2">
             <Link to="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
             <span className="text-gray-400 px-1">•</span>
-            <span className="text-indigo-600">ESG Reports</span>
+            <span className="text-[#0000FF] underline">ESG Reports</span>
           </nav>
           <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">SCADA-i Generative Reports</h1>
           <p className="text-sm text-gray-500 mt-1">Monitor real-time environment & energy metrics</p>
@@ -236,7 +328,7 @@ export default function EsgReports() {
             </div>
             <div>
               <h3 className={`text-sm font-semibold ${generationState === 'success' ? 'text-emerald-900' : 'text-indigo-900'}`}>
-                {generationState === 'success' ? 'Report Generated Successfully' : 'Generating ESG Report...'}
+                {generationState === 'success' ? 'Report Generated Successfully' : generationStatusText}
               </h3>
               <p className={`text-xs mt-0.5 ${generationState === 'success' ? 'text-emerald-700/80' : 'text-indigo-700/80'}`}>
                 {generationState === 'success' 
@@ -260,7 +352,6 @@ export default function EsgReports() {
             <h3 className="text-base font-semibold text-gray-900">Report Archive</h3>
           </div>
           
-          {/* Actions: Button + Search Bar */}
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
             <button 
               onClick={handleGenerateReport}
@@ -286,13 +377,30 @@ export default function EsgReports() {
         
         <div className="flex-1 overflow-y-auto flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full relative">
           
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          {isLoading ? (
+            <div className="divide-y divide-gray-100">
+              {[...Array(5)].map((_, i) => (
+                <div key={`skeleton-${i}`} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 px-4 lg:px-6 bg-white animate-pulse">
+                  <div className="flex items-center gap-4 mb-2 sm:mb-0">
+                    <div className="w-7 h-7 bg-gray-200 rounded-md shrink-0"></div>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="h-4 bg-gray-200 rounded w-48 sm:w-64"></div>
+                      <div className="h-3 bg-gray-100 rounded w-32 sm:w-40 mt-1"></div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-auto w-full pt-2 sm:pt-0 pl-12 sm:pl-0">
+                    <div className="flex flex-col items-start sm:items-end gap-1.5">
+                      <div className="h-2.5 bg-gray-200 rounded w-10"></div>
+                      <div className="h-5 bg-gray-200 rounded w-16"></div>
+                    </div>
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-
-          {!isLoading && filteredReports.length > 0 ? (
+          ) : filteredReports.length > 0 ? (
             <div className="divide-y divide-gray-100">
               {filteredReports.map((report, index) => (
                 <div 
@@ -301,15 +409,13 @@ export default function EsgReports() {
                   className="group flex flex-col sm:flex-row sm:items-center justify-between py-3 px-4 lg:px-6 hover:bg-gray-50 transition-colors cursor-pointer bg-white"
                 >
                   <div className="flex items-center gap-4 mb-2 sm:mb-0">
-                    <div className="p-2 bg-gray-100 text-gray-500 rounded-md group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors shrink-0">
-                      <FileText size={20} />
+                    <div className="p-1 bg-gray-100 flex items-center justify-center rounded-md">
+                      <img src={pdfIcon} alt="PDF Icon" className="w-5 h-5 object-contain" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">ESG Building Performance Report #{filteredReports.length - index}</h4>
+                      <h4 className="text-sm font-semibold text-gray-900 no-underline group-hover:underline transition-colors">ESG Building Performance Report #{filteredReports.length - index}</h4>
                       <div className="flex items-center gap-2.5 mt-1 flex-wrap">
-                        <span className="text-xs font-mono font-medium text-gray-500">
-                          {report.id}
-                        </span>
+                        <span className="text-xs font-mono font-medium text-gray-500">{report.id}</span>
                         <span className="hidden sm:inline text-gray-300 text-[10px]">•</span>
                         <span className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar size={12} className="text-gray-400" /> {formatDate(report.created_at)}
@@ -320,7 +426,7 @@ export default function EsgReports() {
                   
                   <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-auto w-full pt-2 sm:pt-0 pl-12 sm:pl-0">
                     <div className="flex flex-col items-start sm:items-end">
-                      <span className="text-[10px] uppercase text-gray-400 font-semibold tracking-wider">HVAC Rating</span>
+                      <span className="text-[10px] uppercase text-gray-400 font-semibold tracking-wider">Rating</span>
                       <div className="flex items-baseline gap-0.5">
                         <span className="text-lg font-bold text-gray-900">{report.hvac_efficiency_rating}</span>
                         <span className="text-xs font-medium text-gray-400">/100</span>
@@ -333,79 +439,54 @@ export default function EsgReports() {
                 </div>
               ))}
             </div>
-          ) : !isLoading ? (
+          ) : (
             <div className="flex flex-col items-center justify-center h-48 text-center mt-10">
-              <FileText className="w-8 h-8 text-gray-300 mb-3" />
+              <img src={pdfIcon} alt="No Reports" className="w-8 h-8 object-contain mb-3 opacity-50 grayscale" />
               <p className="text-sm font-medium text-gray-900">No reports found</p>
               <p className="text-xs text-gray-500 mt-1">
                 {searchQuery ? `We couldn't find any reports matching "${searchQuery}"` : "The archive is currently empty."}
               </p>
             </div>
-          ) : null}
+          )}
         </div>
       </div>
 
-      {/* --- Modals --- */}
-      
-      {/* View Report react-pdf Modal */}
+      {/* --- View Report Modal --- */}
       {selectedReport && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/80 backdrop-blur-md transition-all duration-300 animate-in fade-in">
           
           {/* Top Toolbar */}
           <div className="w-full flex justify-between items-center px-4 py-3 md:px-6 absolute top-0 z-10 bg-gradient-to-b from-black/80 to-transparent">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded flex items-center justify-center bg-blue-500/20 text-blue-400">
-                <FileText size={18} />
+              <div className="w-8 h-8 rounded flex items-center justify-center bg-blue-500/20">
+                <img src={pdfIcon} alt="PDF Icon" className="w-[18px] h-[18px] object-contain" />
               </div>
               <div className="flex flex-col">
-                <h2 className="text-sm font-semibold text-white truncate max-w-xs md:max-w-xl">
-                  ESG Building Performance Report.pdf
-                </h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-gray-400">
-                    {selectedReport.id}
-                  </span>
-                </div>
+                <h2 className="text-sm font-semibold text-white truncate max-w-xs md:max-w-xl">ESG Building Performance Report.pdf</h2>
+                <span className="text-xs font-mono text-gray-400">{selectedReport.id}</span>
               </div>
             </div>
             
             <div className="flex items-center gap-2 md:gap-4">
-              <a 
-                href={selectedReport.report_pdf_url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition-colors hidden sm:block" 
-                title="Download / View External PDF"
-              >
+              <a href={selectedReport.report_pdf_url} target="_blank" rel="noreferrer" className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition-colors hidden sm:block">
                 <Download size={18} />
               </a>
               <div className="w-px h-5 bg-gray-600 hidden sm:block"></div>
-              <button 
-                onClick={() => setSelectedReport(null)}
-                className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition-colors"
-                title="Close"
-              >
+              <button onClick={() => setSelectedReport(null)} className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition-colors">
                 <X size={20} />
               </button>
             </div>
           </div>
 
-          {/* Centered react-pdf Viewer Area */}
+          {/* PDF Viewer Area */}
           <div 
             className="flex-1 w-full h-full pt-24 pb-24 flex justify-center items-start relative z-0 overflow-y-auto [&::-webkit-scrollbar]:hidden"
-            onClick={(e) => {
-              // Close if clicking the transparent background
-              if (e.target === e.currentTarget) setSelectedReport(null);
-            }}
+            onClick={(e) => e.target === e.currentTarget && setSelectedReport(null)}
           >
              <Document
                 file={selectedReport.report_pdf_url}
                 onLoadSuccess={onDocumentLoadSuccess}
-                loading={
-                  <div className="flex flex-col items-center justify-center text-white/70 h-[50vh]">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/70 mb-4"></div>
-                  </div>
-                }
+                loading={<div className="flex flex-col items-center justify-center text-white/70 h-[50vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/70 mb-4"></div></div>}
                 className="flex justify-center"
              >
                 <Page 
@@ -418,21 +499,27 @@ export default function EsgReports() {
              </Document>
           </div>
 
-          {/* Subtle Professional Pagination Controls */}
+          {/* --- VERTICAL PAGE NUMBERING PILL ON THE RIGHT --- */}
           {numPages && numPages > 0 && (
-            <div className="absolute bottom-6 md:bottom-8 left-1/2 transform -translate-x-1/2 bg-[#1a1a1a]/85 backdrop-blur-md text-gray-300 px-1.5 py-1 rounded-full shadow-xl z-20 border border-white/10 flex items-center gap-3 transition-all select-none">
+            <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-[#1a1a1a]/85 backdrop-blur-md text-gray-300 w-12 py-3 rounded-full shadow-xl z-20 border border-white/10 flex flex-col items-center gap-4 transition-all select-none">
               <button 
                 disabled={pageNumber <= 1}
                 onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
                 className="p-1.5 rounded-full hover:bg-white/10 hover:text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed"
                 aria-label="Previous Page"
               >
-                <ChevronLeft size={16} />
+                <ChevronUp size={18} />
               </button>
               
-              <span className="text-[10px] font-semibold tracking-[0.2em] opacity-80 min-w-[3rem] text-center">
-                {pageNumber} / {numPages}
-              </span>
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-[11px] font-bold text-white leading-none">
+                  {pageNumber}
+                </span>
+                <div className="w-4 h-[1px] bg-white/20 my-1" />
+                <span className="text-[10px] font-semibold opacity-50 leading-none">
+                  {numPages}
+                </span>
+              </div>
               
               <button 
                 disabled={pageNumber >= numPages}
@@ -440,40 +527,83 @@ export default function EsgReports() {
                 className="p-1.5 rounded-full hover:bg-white/10 hover:text-white transition-all disabled:opacity-20 disabled:cursor-not-allowed"
                 aria-label="Next Page"
               >
-                <ChevronRight size={16} />
+                <ChevronDown size={18} />
               </button>
             </div>
           )}
-
         </div>
       )}
 
-      {/* Generation Modal */}
-      {isModalOpen && (
+      {/* --- Guide Modal (3 Steps) --- */}
+      {isGuideOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">How to Generate a Report</h3>
+              <button onClick={() => setIsGuideOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* Step 1 */}
+                <div className="flex flex-col gap-3 text-center items-center">
+                  <img src={instructPicture1} alt="Step 1" className="w-full h-32 md:h-40 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                  <h4 className="font-semibold text-gray-900 text-sm">1. Select Period</h4>
+                  <p className="text-xs text-gray-500 px-2">Choose the specific start and end dates and times for the data you wish to compile.</p>
+                </div>
+                
+                {/* Step 2 */}
+                <div className="flex flex-col gap-3 text-center items-center">
+                  <img src={testPicture} alt="Step 2" className="w-full h-32 md:h-40 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                  <h4 className="font-semibold text-gray-900 text-sm">2. AI Generation</h4>
+                  <p className="text-xs text-gray-500 px-2">The system will process the facility data and compile an AI-driven sustainability assessment.</p>
+                </div>
+                
+                {/* Step 3 */}
+                <div className="flex flex-col gap-3 text-center items-center">
+                  <img src={instructPicture3} alt="Step 3" className="w-full h-32 md:h-40 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                  <h4 className="font-semibold text-gray-900 text-sm">3. View & Export</h4>
+                  <p className="text-xs text-gray-500 px-2">Once complete, preview the document natively in the browser or export it as a PDF.</p>
+                </div>
+
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 border-t border-gray-100">
+              <button onClick={() => setIsGuideOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">Cancel</button>
+              <button 
+                onClick={() => {
+                  setIsGuideOpen(false);
+                  setIsGenerateOpen(true);
+                }} 
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow-sm flex items-center gap-1.5"
+              >
+                Continue <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generation Modal (Form) */}
+      {isGenerateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Generate New Report</h3>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X size={20} />
-              </button>
+              <button onClick={() => setIsGenerateOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></button>
             </div>
             <div className="p-6 flex flex-col gap-5">
               <div>
                 <label className="block text-sm font-semibold text-gray-800 mb-2">Start Period</label>
                 <div className="flex gap-3 items-start">
                   <div className="flex flex-col gap-2">
-                    <input 
-                      type="date" 
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-[140px] px-2.5 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-xs text-gray-800"
-                    />
+                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-[140px] px-2.5 py-2 border border-gray-300 rounded-md shadow-sm text-xs" />
                     <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                      <input type="checkbox" checked={specifyStartTime} onChange={(e) => setSpecifyStartTime(e.target.checked)} className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <input type="checkbox" checked={specifyStartTime} onChange={(e) => setSpecifyStartTime(e.target.checked)} className="w-3.5 h-3.5 rounded text-indigo-600" />
                       <span className="text-[11px] text-gray-500 font-medium">Specify time</span>
                     </label>
                   </div>
@@ -490,14 +620,9 @@ export default function EsgReports() {
                 <label className="block text-sm font-semibold text-gray-800 mb-2">End Period</label>
                 <div className="flex gap-3 items-start">
                   <div className="flex flex-col gap-2">
-                    <input 
-                      type="date" 
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-[140px] px-2.5 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-xs text-gray-800"
-                    />
+                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-[140px] px-2.5 py-2 border border-gray-300 rounded-md shadow-sm text-xs" />
                     <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                      <input type="checkbox" checked={specifyEndTime} onChange={(e) => setSpecifyEndTime(e.target.checked)} className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <input type="checkbox" checked={specifyEndTime} onChange={(e) => setSpecifyEndTime(e.target.checked)} className="w-3.5 h-3.5 rounded text-indigo-600" />
                       <span className="text-[11px] text-gray-500 font-medium">Specify time</span>
                     </label>
                   </div>
@@ -510,20 +635,31 @@ export default function EsgReports() {
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 border-t border-gray-100">
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={submitGenerateReport}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-md shadow-sm transition-colors"
-              >
-                Generate
-              </button>
+            
+            {/* Footer with subtle duration indicator */}
+            <div className="px-6 py-4 bg-gray-50 flex justify-between items-center border-t border-gray-100">
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-gray-500 font-medium">Reporting:</span>
+                <span className={`font-medium ${calculatedDuration === 'Invalid period' ? 'text-red-500' : 'text-gray-900'}`}>
+                  {calculatedDuration}
+                </span>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setIsGenerateOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">Cancel</button>
+                <button 
+                  onClick={submitGenerateReport} 
+                  disabled={calculatedDuration === "Invalid period"}
+                  className={`px-4 py-2 text-sm font-semibold rounded-md shadow-sm transition-all ${
+                    calculatedDuration === "Invalid period" 
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  }`}
+                >
+                  Generate
+                </button>
+              </div>
             </div>
+            
           </div>
         </div>
       )}

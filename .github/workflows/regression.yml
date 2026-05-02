@@ -26,9 +26,9 @@ jobs:
         run: pip install pytest requests
 
       - name: Run regression tests
-        run: pytest agents/test_regression.py -v
+        run: pytest agents/test_regression.py -v -s
         env:
-          BASE_URL: ${{ secrets.RENDER_API_URL }}
+          BASE_URL: ${{ secrets.RAILWAY_API_URL }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

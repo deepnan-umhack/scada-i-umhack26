@@ -8,6 +8,14 @@ import iconSearch from '../assets/Search.svg';
 import { supabase } from '../lib/supabaseClient';
 import ReactMarkdown from 'react-markdown';
 
+const IconRetry = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>
+);
+
+const IconMore = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
+);
+
 interface MainChatProps {
   requirement: string;
   onSetRequirement: (val: string) => void;
@@ -27,11 +35,20 @@ interface MainChatProps {
 interface Message {
   role: 'user' | 'agent';
   text: string;
+  thoughts?: string[];
+  isError?: boolean;
   tags?: {
     space: string | null;
     equipment: string[];
     depts: string[];
   };
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  isCustomTitle?: boolean;
 }
 
 const MainChat: React.FC<MainChatProps> = ({
@@ -53,10 +70,82 @@ const MainChat: React.FC<MainChatProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const savedMessages = localStorage.getItem('chat_messages');
+    return savedMessages ? JSON.parse(savedMessages) : [];
+  });
+
+  const [threadId, setThreadId] = useState(() => {
+    return localStorage.getItem('current_thread_id') || Math.random().toString(36).substring(7);
+  });
+
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>(() => {
+    const saved = localStorage.getItem('chat_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+
   const [isLoading, setIsLoading] = useState(false);
-  const [threadId] = useState(() => Math.random().toString(36).substring(7));
   const [user, setUser] = useState<any>(null);
+  const [expandedThoughts, setExpandedThoughts] = useState<Record<number, boolean>>({});
+  const useMockAI = false;
+
+  useEffect(() => {
+    localStorage.setItem('chat_messages', JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem('current_thread_id', threadId);
+  }, [threadId]);
+
+  useEffect(() => {
+    localStorage.setItem('chat_history', JSON.stringify(chatHistory));
+  }, [chatHistory]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const firstUserMsg = messages.find(m => m.role === 'user');
+      let titleText = firstUserMsg?.text || 'Booking Inquiry';
+
+      if (!firstUserMsg?.text && firstUserMsg?.tags?.space) {
+        titleText = `Booking for ${firstUserMsg.tags.space}`;
+      }
+
+      setChatHistory(prev => {
+        const existingIndex = prev.findIndex(p => p.id === threadId);
+        const existingChat = prev[existingIndex];
+
+        const title = existingChat?.isCustomTitle
+          ? existingChat.title
+          : (titleText.slice(0, 28) + (titleText.length > 28 ? '...' : ''));
+
+        const newSession = {
+          id: threadId,
+          title,
+          messages,
+          isCustomTitle: existingChat?.isCustomTitle
+        };
+
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = newSession;
+          return updated;
+        }
+        return [newSession, ...prev];
+      });
+    }
+  }, [messages, threadId]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openMenuId]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -92,37 +181,47 @@ const MainChat: React.FC<MainChatProps> = ({
     onSetRequirement(e.target.value);
   };
 
-  const handleSendMessage = async () => {
-    const hasContent = requirement.trim() || displayedSpace || displayedEquipment.length > 0 || displayedDepts.length > 0;
-    if (!hasContent || isLoading) return;
+  const handleRetry = async () => {
+    if (isLoading) return;
 
-    const userText = requirement;
-    const tagSnapshot = {
-      space: displayedSpace,
-      equipment: [...displayedEquipment],
-      depts: [...displayedDepts]
-    };
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) return;
 
-    setMessages(prev => [...prev, {
-      role: 'user',
-      text: userText,
-      tags: tagSnapshot
-    }]);
+    setMessages(prev => {
+      const last = prev[prev.length - 1];
+      if (last?.role === 'agent') {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
 
-    onSetRequirement('');
-    onSetDisplayedSpace(null);
-    onSetDisplayedEquipment([]);
-    onSetDisplayedDepts([]);
+    await sendToAI(lastUserMsg.text, lastUserMsg.tags || { space: null, equipment: [], depts: [] });
+  };
+
+  const sendToAI = async (text: string, tags: any) => {
     setIsLoading(true);
 
-    // ===========================================================================================================
-    // AI API CALL (in case ai got problem change this to comment and uncomment the MANUAL TEST CODE block below)
-    // ===========================================================================================================
-    let messageForAI = userText || "(User sent tags only)";
-    const contextTags = [];
-    if (tagSnapshot.space) contextTags.push(`Space: ${tagSnapshot.space}`);
-    if (tagSnapshot.equipment.length > 0) contextTags.push(`Equipment: ${tagSnapshot.equipment.join(', ')}`);
-    if (tagSnapshot.depts.length > 0) contextTags.push(`Departments: ${tagSnapshot.depts.join(', ')}`);
+    if (useMockAI) {
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          setMessages(prev => [...prev, {
+            role: 'agent',
+            text: `This is a mock response for UI testing.\nYou wrote: "${text || '...'}"`,
+            thoughts: ["Walking through the request and preparing the best answer..."],
+            isError: false
+          }]);
+          setIsLoading(false);
+          resolve();
+        }, 900);
+      });
+      return;
+    }
+
+    let messageForAI = text || "(User sent tags only)";
+    const contextTags: string[] = [];
+    if (tags.space) contextTags.push(`Space: ${tags.space}`);
+    if (tags.equipment.length > 0) contextTags.push(`Equipment: ${tags.equipment.join(', ')}`);
+    if (tags.depts.length > 0) contextTags.push(`Departments: ${tags.depts.join(', ')}`);
 
     if (contextTags.length > 0) {
       messageForAI = `${messageForAI}\n\n(System Note: User UI tags: ${contextTags.join(' | ')})`;
@@ -135,7 +234,7 @@ const MainChat: React.FC<MainChatProps> = ({
         user_id: user?.id ? `${user.id}` : "user_01"
       };
 
-      const response = await fetch("https://scada-i-umhack26-1.onrender.com/chat", {
+      const response = await fetch("https://scada-i-umhack26-production.up.railway.app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadToSend),
@@ -145,38 +244,158 @@ const MainChat: React.FC<MainChatProps> = ({
         throw new Error("Server error");
       }
 
-      const data = await response.json();
-      if (data.reply) {
-        setMessages(prev => [...prev, { role: 'agent', text: data.reply }]);
+      const contentType = response.headers.get("content-type") || "";
+      const isStream = contentType.includes("text/event-stream") || contentType.includes("text/plain") || !contentType.includes("application/json");
+
+      if (isStream && response.body) {
+        setMessages(prev => [...prev, { role: 'agent', text: '', thoughts: [] }]);
+        setIsLoading(false);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        const appendThought = (thought: string) => {
+          setMessages(prev => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.role === 'agent') {
+              updated[updated.length - 1] = { ...last, thoughts: [...(last.thoughts ?? []), thought] };
+            }
+            return updated;
+          });
+        };
+
+        const appendText = (token: string) => {
+          setMessages(prev => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.role === 'agent') {
+              updated[updated.length - 1] = { ...last, text: last.text + token };
+            }
+            return updated;
+          });
+        };
+
+        const processLine = (line: string) => {
+          const raw = line.startsWith('data: ') ? line.slice(6).trim() : line.trim();
+          if (!raw || raw === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(raw);
+            const type = parsed.type;
+
+            if (type === 'thought') {
+              const detail: string = parsed.details ?? parsed.text ?? parsed.content ?? '';
+              if (detail) appendThought(detail);
+
+            } else if (type === 'action') {
+              const agent: string = parsed.agent ?? 'Agent';
+              const action: string = parsed.action ?? '';
+              const rawDetails: string = parsed.details ?? '';
+
+              let detailText = rawDetails;
+
+              // Try to extract JSON anywhere in the string (handles mixed text + JSON)
+              const jsonMatch = rawDetails.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                try {
+                  const innerJson = JSON.parse(jsonMatch[0]);
+                  // Use .message if present, otherwise pretty-print the whole object
+                  detailText = typeof innerJson.message === 'string'
+                    ? innerJson.message.trim()
+                    : JSON.stringify(innerJson, null, 2);
+                } catch {
+                  detailText = rawDetails;
+                }
+              }
+
+              const thoughtEntry = `${agent} — ${action}${detailText ? `\n${detailText}` : ''}`;
+              appendThought(thoughtEntry);
+
+            } else if (type === 'final_response') {
+              const token: string = parsed.details ?? parsed.text ?? parsed.content ?? parsed.reply ?? '';
+              if (token) appendText(token);
+
+            } else if (type === 'done') {
+              // stream complete, nothing to do
+
+            } else {
+              const token: string = parsed.token ?? parsed.text ?? parsed.content ?? parsed.reply ?? raw;
+              if (token) appendText(token);
+            }
+
+          } catch {
+            // Not JSON — append raw as text token
+            if (raw) appendText(raw);
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) processLine(line);
+        }
+        if (buffer.trim()) processLine(buffer);
+
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'agent' && !last.text.trim()) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { ...last, text: "The server connected but didn't provide a reply. Please try again.", isError: true };
+            return updated;
+          }
+          return prev;
+        });
+
       } else {
+        const data = await response.json();
+        const replyText = data.reply || "The server connected but didn't provide a reply. Please try again.";
         setMessages(prev => [...prev, {
           role: 'agent',
-          text: "The server connected but didn't provide a reply. Please try again."
+          text: replyText,
+          thoughts: data.thought ? [data.thought] : [],
+          isError: !data.reply
         }]);
       }
     } catch (error) {
       console.error("Chat API failed:", error);
-      setMessages(prev => [...prev, { 
-        role: 'agent', 
-        text: "Connection failed. Please check your internet or try again later." 
+      setMessages(prev => [...prev, {
+        role: 'agent',
+        text: "Connection failed. Please check your internet or try again later.",
+        isError: true
       }]);
     } finally {
       setIsLoading(false);
     }
+  };
 
-    // ==========================================
-    // MANUAL TEST CODE (Simulating AI Reply)
-    // ==========================================
-    /*
-    setTimeout(() => {
-      setMessages(prev => [...prev, {
-        role: 'agent',
-        text: "I have checked the availability for your requested date. Unfortunately, the main hall is currently undergoing maintenance. However, I can offer you Bilik Ilmuan 1 or the Seminar Room as alternatives. \n\nBoth spaces are fully equipped with high-speed Wi-Fi, premium sound systems, and enough seating for up to 50 participants. Please let me know if you would like me to lock in these dates for you, or if you need to add more equipment like microphones or extra flip charts to your list. Our team is ready to assist you in making your event a success!"
-      }]);
-      setIsLoading(false);
-    }, 1500);
-    */
-    // ==========================================
+  const handleSendMessage = async () => {
+    const hasContent = requirement.trim() || displayedSpace || displayedEquipment.length > 0 || displayedDepts.length > 0;
+    if (!hasContent || isLoading) return;
+
+    const userText = requirement;
+    const tagSnapshot = {
+      space: displayedSpace,
+      equipment: [...displayedEquipment],
+      depts: [...displayedDepts],
+    };
+
+    setMessages(prev => [...prev, {
+      role: 'user',
+      text: userText,
+      tags: tagSnapshot,
+    }]);
+
+    onSetRequirement('');
+    onSetDisplayedSpace(null);
+    onSetDisplayedEquipment([]);
+    onSetDisplayedDepts([]);
+
+    await sendToAI(userText, tagSnapshot);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -187,17 +406,66 @@ const MainChat: React.FC<MainChatProps> = ({
   };
 
   const handleNewChat = () => {
+    if (messages.length === 0) {
+      setIsSidebarOpen(false);
+      return;
+    }
+
+    setThreadId(Math.random().toString(36).substring(7));
     onSetRequirement('');
     setMessages([]);
     onSetDisplayedSpace(null);
     onSetDisplayedEquipment([]);
     onSetDisplayedDepts([]);
     setIsSidebarOpen(false);
+    localStorage.removeItem('chat_messages');
+  };
+
+  const loadChat = (session: ChatSession) => {
+    if (editingChatId === session.id) return;
+
+    setThreadId(session.id);
+    setMessages(session.messages);
+    onSetRequirement('');
+    onSetDisplayedSpace(null);
+    onSetDisplayedEquipment([]);
+    onSetDisplayedDepts([]);
+    setIsSidebarOpen(false);
+  };
+
+  const deleteChat = (e: React.MouseEvent, idToRemove: string) => {
+    e.stopPropagation();
+    setChatHistory(prev => prev.filter(session => session.id !== idToRemove));
+    setOpenMenuId(null);
+    if (idToRemove === threadId) {
+      handleNewChat();
+    }
+  };
+
+  const handleToggleMenu = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setOpenMenuId(prev => prev === id ? null : id);
+  };
+
+  const handleStartRename = (e: React.MouseEvent, chat: ChatSession) => {
+    e.stopPropagation();
+    setEditingChatId(chat.id);
+    setEditTitle(chat.title);
+    setOpenMenuId(null);
+  };
+
+  const handleSaveRename = (e: React.SyntheticEvent, id: string) => {
+    e.stopPropagation();
+    if (editTitle.trim()) {
+      setChatHistory(prev => prev.map(c =>
+        c.id === id ? { ...c, title: editTitle.trim(), isCustomTitle: true } : c
+      ));
+    }
+    setEditingChatId(null);
   };
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
-  // Extracted tag rendering with mobile/desktop layout
   const renderInputTags = (): JSX.Element => {
     const allTags: JSX.Element[] = [];
     if (displayedSpace) {
@@ -226,31 +494,19 @@ const MainChat: React.FC<MainChatProps> = ({
     });
 
     const ghostTags: JSX.Element[] = [];
-    if (!displayedSpace) ghostTags.push(<button key="g-s" onClick={onOpenBrowseSpaces} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0">+ Add Space</button>);
-    if (displayedEquipment.length === 0) ghostTags.push(<button key="g-e" onClick={onOpenEquipmentCatalog} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0">+ Add Equipment</button>);
-    if (displayedDepts.length === 0) ghostTags.push(<button key="g-d" onClick={onOpenDepartmentDirectory} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0">+ Add Dept</button>);
-
-    const allMobile = [...allTags, ...ghostTags];
-    const mRow1 = allMobile.filter((_, idx) => idx === 0 || idx === 1 || (idx > 3 && idx % 2 === 0));
-    const mRow2 = allMobile.filter((_, idx) => idx === 2 || idx === 3 || (idx > 3 && idx % 2 !== 0));
-    const dCount = Math.max(3, Math.ceil(allTags.length / 2));
+    if (!displayedSpace) ghostTags.push(<button key="g-s" onClick={() => onOpenBrowseSpaces()} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0 hover:bg-slate-50 transition-colors">+ Add Space</button>);
+    if (displayedEquipment.length === 0) ghostTags.push(<button key="g-e" onClick={() => onOpenEquipmentCatalog()} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0 hover:bg-slate-50 transition-colors">+ Add Equipment</button>);
+    if (displayedDepts.length === 0) ghostTags.push(<button key="g-d" onClick={() => onOpenDepartmentDirectory()} className="flex items-center gap-1.5 border border-dashed border-slate-300 px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 h-7 shrink-0 hover:bg-slate-50 transition-colors">+ Add Dept</button>);
 
     return (
       <>
         {/* Mobile View */}
-        <div className="flex md:hidden flex-col w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-start transition-all">
-          <div className="flex flex-row gap-2 shrink-0 min-w-max">{mRow1}</div>
-          {mRow2.length > 0 && <div className="flex flex-row gap-2 shrink-0 min-w-max">{mRow2}</div>}
+        <div className="flex md:hidden flex-row w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-center transition-all">
+          {allTags}{ghostTags}
         </div>
         {/* Desktop View */}
-        <div className="hidden md:flex flex-row w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-start transition-all">
-          {allTags.length > 0 && (
-            <div className="flex flex-col gap-2 shrink-0">
-              <div className="flex flex-row gap-2 shrink-0">{allTags.slice(0, dCount)}</div>
-              {allTags.length > dCount && <div className="flex flex-row gap-2 shrink-0">{allTags.slice(dCount)}</div>}
-            </div>
-          )}
-          {ghostTags.length > 0 && <div className="flex flex-row items-center gap-2 shrink-0 h-7">{ghostTags}</div>}
+        <div className="hidden md:flex flex-row w-full overflow-x-auto no-scrollbar gap-2 pb-1 mb-2 items-center transition-all">
+          {allTags}{ghostTags}
         </div>
       </>
     );
@@ -284,14 +540,75 @@ const MainChat: React.FC<MainChatProps> = ({
               <img src={iconInbox} className="h-5 w-5 opacity-70" /><span>Booking history</span>
             </button>
           </div>
+
           <div className="pt-4 px-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Chats</div>
+
+          {/* DYNAMIC HISTORY NAV WITH MENU */}
           <nav className="flex-1 overflow-y-auto space-y-1 min-h-0 custom-scrollbar text-sm text-gray-600">
-            {['A 5 person room', 'Media interview event', 'AI project showcase room'].map((chat) => (
-              <div key={chat} className="group flex items-center justify-between p-2 hover:bg-white/50 rounded-lg cursor-pointer transition-all active:scale-95">
-                <span className="truncate">{chat}</span><span className="text-gray-400 opacity-60">⋮</span>
-              </div>
-            ))}
+            {chatHistory.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-400 italic">No recent chats</div>
+            ) : (
+              chatHistory.map((chat) => (
+                <div
+                  key={chat.id}
+                  onClick={() => loadChat(chat)}
+                  className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${chat.id === threadId
+                    ? 'bg-blue-50/50 text-blue-700 font-medium'
+                    : 'hover:bg-white/50 text-slate-600'
+                    }`}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden w-full">
+                    <span className="text-lg opacity-50 shrink-0"></span>
+
+                    {editingChatId === chat.id ? (
+                      <input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(e, chat.id);
+                          else if (e.key === 'Escape') setEditingChatId(null);
+                        }}
+                        onBlur={(e) => handleSaveRename(e, chat.id)}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 bg-white border border-blue-300 rounded px-1.5 py-0.5 outline-none text-black w-full text-xs"
+                      />
+                    ) : (
+                      <span className="truncate pr-1">{chat.title}</span>
+                    )}
+                  </div>
+
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={(e) => handleToggleMenu(e, chat.id)}
+                      className={`p-1 rounded-md transition-colors ${openMenuId === chat.id ? 'bg-slate-200 text-slate-700 opacity-100' : 'text-gray-400 hover:text-slate-600 hover:bg-slate-200/50'}`}
+                      title="Options"
+                    >
+                      <IconMore />
+                    </button>
+
+                    {openMenuId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-slate-200 shadow-lg rounded-xl z-50 overflow-hidden text-sm py-1 font-medium">
+                        <button
+                          onClick={(e) => handleStartRename(e, chat)}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700"
+                        >
+                          Rename
+                        </button>
+                        <button
+                          onClick={(e) => deleteChat(e, chat.id)}
+                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </nav>
+
         </div>
         <div className="p-6 border-t border-gray-200/50">
           <button onClick={onOpenProfileSettings} className="flex items-center space-x-3 text-sm font-medium text-gray-600 hover:text-black transition-colors w-full active:scale-95">
@@ -307,9 +624,8 @@ const MainChat: React.FC<MainChatProps> = ({
             <div className="flex items-center gap-4">
               <button
                 onClick={toggleSidebar}
-                className={`p-2 hover:bg-gray-200/50 rounded-lg transition-all duration-300 active:scale-90 ${
-                  isSidebarOpen ? 'md:opacity-100 md:scale-100 opacity-0 scale-0 pointer-events-none md:pointer-events-auto' : 'opacity-100 scale-100'
-                }`}
+                className={`p-2 hover:bg-gray-200/50 rounded-lg transition-all duration-300 active:scale-90 ${isSidebarOpen ? 'md:opacity-100 md:scale-100 opacity-0 scale-0 pointer-events-none md:pointer-events-auto' : 'opacity-100 scale-100'
+                  }`}
               >
                 <img src={iconMenu} alt="Menu" className="h-5 w-auto" />
               </button>
@@ -323,7 +639,7 @@ const MainChat: React.FC<MainChatProps> = ({
           </div>
         </header>
 
-<div className="flex-1 flex flex-col px-5 md:px-10 overflow-hidden relative">
+        <div className="flex-1 flex flex-col px-5 md:px-10 overflow-hidden relative">
           <div className="flex-1 overflow-y-auto no-scrollbar pt-4 flex flex-col">
             {messages.length === 0 ? (
               <div className="mt-4 md:mt-9 mb-auto w-full flex flex-col items-start md:items-center">
@@ -342,19 +658,60 @@ const MainChat: React.FC<MainChatProps> = ({
               <div className="w-full max-w-3xl mx-auto flex flex-col gap-5 pb-0 mt-auto">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-sm ${
-                      msg.role === 'user' ? 'bg-[#1A1A1A] text-white rounded-br-none' : 'bg-white text-[#1A1A1A] border border-slate-200 rounded-bl-none'
-                    }`}>
+
+                    <div className={`max-w-[92%] px-5 py-4 shadow-sm overflow-hidden wrap-break-word w-fit ${msg.role === 'user'
+                      ? 'bg-slate-900 text-white border border-slate-800 rounded-3xl rounded-br-none'
+                      : 'bg-white text-[#1A1A1A] border border-slate-200 rounded-3xl rounded-bl-none'
+                      }`}>
+
                       {msg.role === 'agent' ? (
-                        <div className="prose prose-sm max-w-none prose-slate">
-                          <ReactMarkdown>{msg.text}</ReactMarkdown>
-                        </div>
+                        <>
+                          {msg.thoughts && msg.thoughts.length > 0 && (
+                            <div className="mb-3">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setExpandedThoughts(prev => ({ ...prev, [idx]: !prev[idx] }));
+                                }}
+                                className="flex items-center gap-1.5 text-[11px] font- text-slate-400 hover:text-slate-600 transition-colors outline-none"
+                              >
+                                <span className="uppercase tracking-widest">Show thoughts</span>
+                                <svg
+                                  className={`w-3 h-3 ml-1 transition-transform duration-200 ${expandedThoughts[idx] ? 'rotate-180' : ''}`}
+                                  viewBox="0 0 16 16" fill="none"
+                                >
+                                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+
+                              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedThoughts[idx] ? 'max-h-[600px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+                                <div className="border-l-2 border-slate-200 pl-3 ml-1 flex flex-col gap-2">
+                                  {msg.thoughts.map((thoughtItem, ti) => (
+                                    <div key={ti} className="text-[11px] leading-relaxed text-slate-500 italic whitespace-pre-wrap font-mono">
+                                      {thoughtItem}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="prose prose-sm max-w-none prose-slate wrap-break-word whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                            {msg.text ? (
+                              <ReactMarkdown>{msg.text}</ReactMarkdown>
+                            ) : (
+                              <span className="italic text-slate-400 animate-pulse">Thinking...</span>
+                            )}
+                          </div>
+                        </>
                       ) : (
-                        <div className="whitespace-pre-wrap">
+                        <div className="whitespace-pre-wrap wrap-break-word text-sm leading-6">
                           {msg.text || "Check these requirements:"}
                         </div>
                       )}
                     </div>
+
                     {msg.role === 'user' && msg.tags && (
                       <div className="flex flex-wrap justify-end gap-2 mt-2 max-w-[85%]">
                         {msg.tags.space && (
@@ -374,24 +731,26 @@ const MainChat: React.FC<MainChatProps> = ({
                         ))}
                       </div>
                     )}
+
+                    {msg.role === 'agent' && idx === messages.length - 1 && !isLoading && (
+                      <button
+                        onClick={handleRetry}
+                        className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors uppercase tracking-wider"
+                      >
+                        <IconRetry /> {msg.isError ? 'Try again' : 'Regenerate'}
+                      </button>
+                    )}
                   </div>
                 ))}
-                {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-white border border-slate-200 px-5 py-3 rounded-2xl rounded-bl-none shadow-sm text-slate-400">
-                      <span className="animate-pulse italic">Thinking...</span>
-                    </div>
-                  </div>
-                )}
                 <div ref={messagesEndRef} />
               </div>
             )}
           </div>
 
-          <div className="w-full max-w-2xl mx-auto mt-2 mb-4 shrink-0">
+          <div className="w-full max-w-3xl mx-auto mt-2 mb-4 shrink-0">
             {requirement === '' && messages.length === 0 && (
               <div className="flex flex-row justify-start md:justify-center gap-2 mb-2 overflow-x-auto no-scrollbar pb-1">
-                {['Book room', 'Book equipment', 'Find the contact','Operating time','View history'].map(label => (
+                {['Book room', 'Book equipment', 'Find the contact', 'Operating time', 'View history'].map(label => (
                   <button key={label} onClick={() => onSetRequirement(label)} className="text-[13px] border border-slate-300 px-5 py-2 rounded-2xl bg-white/50 hover:bg-white text-center transition-all whitespace-nowrap active:scale-95 font-medium text-slate-600 shadow-xs">
                     {label}
                   </button>
@@ -413,13 +772,12 @@ const MainChat: React.FC<MainChatProps> = ({
                     rows={1}
                     className="flex-1 bg-transparent border-none focus:ring-0 text-[16px] outline-none text-slate-700 resize-none placeholder-slate-300 font-normal leading-normal h-auto no-scrollbar max-h-40 overflow-y-hidden py-1 disabled:opacity-50"
                   />
-                  <button onClick={handleSendMessage} disabled={isLoading} className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center disabled:opacity-30">
+                  <button onClick={() => handleSendMessage()} disabled={isLoading} className="transition-all duration-200 active:scale-90 group p-1 flex items-center justify-center disabled:opacity-30">
                     <span className="text-2xl text-slate-300 rotate-[-15deg] block group-hover:text-blue-500 transition-colors leading-none">➤</span>
                   </button>
                 </div>
               </div>
             </div>
-            {/* Disclaimer: DeepNaN is AI and can make mistakes. */}
           </div>
         </div>
       </main>

@@ -2,7 +2,6 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import { vi } from 'vitest'
 import BrowseSpaces from './BrowseSpaces'
 
-// Mock all assets
 vi.mock('../assets/LogoS.svg', () => ({ default: 'logo.svg' }))
 vi.mock('../assets/Menu.svg', () => ({ default: 'menu.svg' }))
 vi.mock('../assets/Settings.svg', () => ({ default: 'settings.svg' }))
@@ -31,7 +30,10 @@ const defaultProps = {
 }
 
 describe('BrowseSpaces', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
 
   // --- Rendering ---
   it('renders without crashing', () => {
@@ -68,6 +70,11 @@ describe('BrowseSpaces', () => {
     expect(screen.getByAltText('DeepNaN')).toBeInTheDocument()
   })
 
+  it('renders Bookings button', () => {
+    render(<BrowseSpaces {...defaultProps} />)
+    expect(screen.getByText('Bookings')).toBeInTheDocument()
+  })
+
   // --- Space selection ---
   it('calls onSpaceSelected when a space card is clicked', () => {
     render(<BrowseSpaces {...defaultProps} />)
@@ -75,13 +82,25 @@ describe('BrowseSpaces', () => {
     expect(defaultProps.onSpaceSelected).toHaveBeenCalledWith('Syndicate Room')
   })
 
-  it('shows toast when clicking an already-selected space', async () => {
+  it('calls onSpaceSelected for each space', () => {
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByText('Dewan Seminar'))
+    expect(defaultProps.onSpaceSelected).toHaveBeenCalledWith('Dewan Seminar')
+  })
+
+  it('does not call onSpaceSelected when clicking already-selected space', () => {
     render(<BrowseSpaces {...defaultProps} selectedSpace="Syndicate Room" />)
     fireEvent.click(screen.getByText('Syndicate Room'))
     expect(defaultProps.onSpaceSelected).not.toHaveBeenCalled()
   })
 
-  it('shows "Tagged" badge on selected space', () => {
+  it('shows toast when clicking already-selected space', () => {
+    render(<BrowseSpaces {...defaultProps} selectedSpace="Syndicate Room" />)
+    fireEvent.click(screen.getByText('Syndicate Room'))
+    expect(screen.getByText(/space already tagged/i)).toBeInTheDocument()
+  })
+
+  it('shows Tagged badge on selected space', () => {
     render(<BrowseSpaces {...defaultProps} selectedSpace="Dewan Seminar" />)
     expect(screen.getByText('Tagged')).toBeInTheDocument()
   })
@@ -94,24 +113,28 @@ describe('BrowseSpaces', () => {
   // --- Toast ---
   it('shows toast when info button is clicked', () => {
     render(<BrowseSpaces {...defaultProps} />)
-    const infoBtn = screen.getAllByAltText('Info')[0]
-    fireEvent.click(infoBtn.closest('button')!)
-    // toast div becomes visible (opacity-100) — just check it exists
+    fireEvent.click(screen.getAllByAltText('Info')[0].closest('button')!)
     expect(screen.getByText(/tap any card to tag it to your chat/i)).toBeInTheDocument()
   })
 
-  it('hides toast after 3 seconds', async () => {
+  it('hides toast after 3 seconds', () => {
     vi.useFakeTimers()
     render(<BrowseSpaces {...defaultProps} selectedSpace="Syndicate Room" />)
-    fireEvent.click(screen.getByText('Syndicate Room')) // triggers toast
+    fireEvent.click(screen.getByText('Syndicate Room'))
     act(() => { vi.advanceTimersByTime(3000) })
     vi.useRealTimers()
   })
 
   // --- Navigation ---
-  it('calls onBack when close button is clicked', () => {
+  it('calls onBack when close ✕ button is clicked', () => {
     render(<BrowseSpaces {...defaultProps} />)
     fireEvent.click(screen.getByText('✕'))
+    expect(defaultProps.onBack).toHaveBeenCalled()
+  })
+
+  it('calls onBack when logo is clicked', () => {
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('DeepNaN'))
     expect(defaultProps.onBack).toHaveBeenCalled()
   })
 
@@ -142,10 +165,86 @@ describe('BrowseSpaces', () => {
     expect(defaultProps.onOpenProfileSettings).toHaveBeenCalled()
   })
 
+  it('calls onOpenBookingStatus from sidebar Booking history', () => {
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    fireEvent.click(screen.getByText('Booking history'))
+    expect(defaultProps.onOpenBookingStatus).toHaveBeenCalled()
+  })
+
   it('closes sidebar overlay on backdrop click', () => {
     render(<BrowseSpaces {...defaultProps} />)
     fireEvent.click(screen.getByAltText('Menu'))
     const overlay = document.querySelector('.fixed.inset-0.bg-black\\/5')
     if (overlay) fireEvent.click(overlay)
+    // sidebar is CSS-transformed not unmounted
+    expect(screen.getByText('New chat')).toBeInTheDocument()
+  })
+
+  it('shows No recent chats when history is empty', () => {
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    expect(screen.getByText('No recent chats')).toBeInTheDocument()
+  })
+
+  // --- Chat history ---
+  it('renders chat history from localStorage', () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'My Chat', messages: [] }]))
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    expect(screen.getByText('My Chat')).toBeInTheDocument()
+  })
+
+  it('loads a chat session when history item clicked', () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'My Chat', messages: [] }]))
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    fireEvent.click(screen.getByText('My Chat'))
+    expect(defaultProps.onBack).toHaveBeenCalled()
+  })
+
+  it('opens kebab menu for chat history item', () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'Old Chat', messages: [] }]))
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    expect(screen.getByText('Rename')).toBeInTheDocument()
+    expect(screen.getByText('Delete')).toBeInTheDocument()
+  })
+
+  it('deletes a chat history item', () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'Old Chat', messages: [] }]))
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Delete'))
+    expect(screen.queryByText('Old Chat')).not.toBeInTheDocument()
+  })
+
+  it('renames a chat history item', () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'Old Chat', messages: [] }]))
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Rename'))
+    const input = screen.getByDisplayValue('Old Chat')
+    fireEvent.change(input, { target: { value: 'New Name' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByText('New Name')).toBeInTheDocument()
+  })
+
+  it('cancels rename with Escape key', () => {
+    localStorage.setItem('chat_history', JSON.stringify([{ id: 'abc', title: 'Old Chat', messages: [] }]))
+    render(<BrowseSpaces {...defaultProps} />)
+    fireEvent.click(screen.getByAltText('Menu'))
+    const kebab = document.querySelector('[title="Options"]') as HTMLElement
+    fireEvent.click(kebab)
+    fireEvent.click(screen.getByText('Rename'))
+    const input = screen.getByDisplayValue('Old Chat')
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.getByText('Old Chat')).toBeInTheDocument()
   })
 })
