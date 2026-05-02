@@ -1,0 +1,17 @@
+$kind: http-request
+name: 'DELETE test department (Supabase)'
+url: '{{SUPABASE_URL}}/rest/v1/departments?name=eq.Test Department CI'
+method: DELETE
+headers:
+  - key: apikey
+    value: '{{SUPABASE_ANON_KEY}}'
+  - key: Authorization
+    value: 'Bearer {{SUPABASE_ANON_KEY}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200 or 204", function () {
+          pm.expect(pm.response.code).to.be.oneOf([200, 204]);
+      });
+order: 1777662446546

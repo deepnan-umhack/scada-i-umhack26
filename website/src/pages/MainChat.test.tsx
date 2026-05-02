@@ -283,7 +283,7 @@ it('handles server error response (non-ok status)', async () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://scada-i-umhack26-1.onrender.com/chat',
+        'https://scada-i-umhack26-production.up.railway.app/chat',
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

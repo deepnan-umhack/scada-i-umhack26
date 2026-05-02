@@ -1,0 +1,34 @@
+$kind: http-request
+name: POST insert department (Supabase)
+method: POST
+url: '{{SUPABASE_URL}}/rest/v1/departments'
+order: 1777662446545
+headers:
+  - key: apikey
+    value: '{{SUPABASE_ANON_KEY}}'
+  - key: Authorization
+    value: 'Bearer {{SUPABASE_ANON_KEY}}'
+  - key: Content-Type
+    value: application/json
+  - key: Prefer
+    value: return=representation
+body:
+  type: json
+  content: |-
+    {
+      "name": "Test Department CI",
+      "description": "Automated CI test department"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 201", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("Inserted department has name", function () {
+          const json = pm.response.json();
+          pm.expect(json[0]).to.have.property("name");
+          pm.collectionVariables.set("inserted_id", json[0].id);
+      });

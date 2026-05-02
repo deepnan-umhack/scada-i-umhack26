@@ -8,6 +8,10 @@ import iconSearch from '../assets/Search.svg';
 import { supabase } from '../lib/supabaseClient';
 import ReactMarkdown from 'react-markdown';
 
+const IconRetry = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+);
+
 interface MainChatProps {
   requirement: string;
   onSetRequirement: (val: string) => void;
@@ -27,6 +31,8 @@ interface MainChatProps {
 interface Message {
   role: 'user' | 'agent';
   text: string;
+  thoughts?: string[];
+  isError?: boolean;
   tags?: {
     space: string | null;
     equipment: string[];
@@ -55,8 +61,11 @@ const MainChat: React.FC<MainChatProps> = ({
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedThoughts, setExpandedThoughts] = useState<Record<number, boolean>>({});
   const [threadId] = useState(() => Math.random().toString(36).substring(7));
   const [user, setUser] = useState<any>(null);
+
+  const useMockAI = true; // set false when the real AI backend is ready
 
   useEffect(() => {
     const getUser = async () => {
@@ -92,37 +101,50 @@ const MainChat: React.FC<MainChatProps> = ({
     onSetRequirement(e.target.value);
   };
 
-  const handleSendMessage = async () => {
-    const hasContent = requirement.trim() || displayedSpace || displayedEquipment.length > 0 || displayedDepts.length > 0;
-    if (!hasContent || isLoading) return;
+  const handleRetry = async () => {
+    if (isLoading) return;
 
-    const userText = requirement;
-    const tagSnapshot = {
-      space: displayedSpace,
-      equipment: [...displayedEquipment],
-      depts: [...displayedDepts]
-    };
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) return;
 
-    setMessages(prev => [...prev, {
-      role: 'user',
-      text: userText,
-      tags: tagSnapshot
-    }]);
+    setMessages(prev => {
+      const last = prev[prev.length - 1];
+      if (last?.role === 'agent') {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
 
-    onSetRequirement('');
-    onSetDisplayedSpace(null);
-    onSetDisplayedEquipment([]);
-    onSetDisplayedDepts([]);
+    await sendToAI(lastUserMsg.text, lastUserMsg.tags || { space: null, equipment: [], depts: [] });
+  };
+
+  const sendToAI = async (text: string, tags: any) => {
     setIsLoading(true);
 
-    // ===========================================================================================================
-    // AI API CALL (in case ai got problem change this to comment and uncomment the MANUAL TEST CODE block below)
-    // ===========================================================================================================
-    let messageForAI = userText || "(User sent tags only)";
-    const contextTags = [];
-    if (tagSnapshot.space) contextTags.push(`Space: ${tagSnapshot.space}`);
-    if (tagSnapshot.equipment.length > 0) contextTags.push(`Equipment: ${tagSnapshot.equipment.join(', ')}`);
-    if (tagSnapshot.depts.length > 0) contextTags.push(`Departments: ${tagSnapshot.depts.join(', ')}`);
+    if (useMockAI) {
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          setMessages(prev => [...prev, {
+            role: 'agent',
+            text: `This is a mock response for UI testing.\n\nYou wrote: "${text || '...'}"`,
+            thoughts: [
+              "Walking through the request and preparing the best answer...",
+              "Checking space availability and equipment catalog...",
+            ],
+            isError: false
+          }]);
+          setIsLoading(false);
+          resolve();
+        }, 900);
+      });
+      return;
+    }
+
+    let messageForAI = text || "(User sent tags only)";
+    const contextTags: string[] = [];
+    if (tags.space) contextTags.push(`Space: ${tags.space}`);
+    if (tags.equipment.length > 0) contextTags.push(`Equipment: ${tags.equipment.join(', ')}`);
+    if (tags.depts.length > 0) contextTags.push(`Departments: ${tags.depts.join(', ')}`);
 
     if (contextTags.length > 0) {
       messageForAI = `${messageForAI}\n\n(System Note: User UI tags: ${contextTags.join(' | ')})`;
@@ -145,38 +167,137 @@ const MainChat: React.FC<MainChatProps> = ({
         throw new Error("Server error");
       }
 
-      const data = await response.json();
-      if (data.reply) {
-        setMessages(prev => [...prev, { role: 'agent', text: data.reply }]);
+      const contentType = response.headers.get("content-type") || "";
+      const isStream = contentType.includes("text/event-stream") || contentType.includes("text/plain") || !contentType.includes("application/json");
+
+      if (isStream && response.body) {
+        setMessages(prev => [...prev, { role: 'agent', text: '', thoughts: [] }]);
+        setIsLoading(false);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        const processLine = (line: string) => {
+          const raw = line.startsWith('data: ') ? line.slice(6).trim() : line.trim();
+          if (!raw || raw === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(raw);
+            const type = parsed.type;
+
+            if (type === 'thought') {
+              const detail: string = parsed.details ?? parsed.text ?? parsed.content ?? '';
+              if (detail) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last?.role === 'agent') {
+                    updated[updated.length - 1] = { ...last, thoughts: [...(last.thoughts ?? []), detail] };
+                  }
+                  return updated;
+                });
+              }
+            } else if (type === 'final_response') {
+              const token: string = parsed.details ?? parsed.text ?? parsed.content ?? parsed.reply ?? '';
+              if (token) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last?.role === 'agent') updated[updated.length - 1] = { ...last, text: last.text + token };
+                  return updated;
+                });
+              }
+            } else if (type === 'done') {
+              // stream complete
+            } else {
+              const token: string = parsed.token ?? parsed.text ?? parsed.content ?? parsed.reply ?? raw;
+              if (token) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last?.role === 'agent') updated[updated.length - 1] = { ...last, text: last.text + token };
+                  return updated;
+                });
+              }
+            }
+          } catch {
+            if (raw) {
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'agent') updated[updated.length - 1] = { ...last, text: last.text + raw };
+                return updated;
+              });
+            }
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) processLine(line);
+        }
+        if (buffer.trim()) processLine(buffer);
+
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'agent' && !last.text.trim()) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { ...last, text: "The server connected but didn't provide a reply. Please try again.", isError: true };
+            return updated;
+          }
+          return prev;
+        });
+
       } else {
+        const data = await response.json();
+        const replyText = data.reply || "The server connected but didn't provide a reply. Please try again.";
         setMessages(prev => [...prev, {
           role: 'agent',
-          text: "The server connected but didn't provide a reply. Please try again."
+          text: replyText,
+          thoughts: data.thought ? [data.thought] : [],
+          isError: !data.reply
         }]);
       }
     } catch (error) {
       console.error("Chat API failed:", error);
-      setMessages(prev => [...prev, { 
-        role: 'agent', 
-        text: "Connection failed. Please check your internet or try again later." 
+      setMessages(prev => [...prev, {
+        role: 'agent',
+        text: "Connection failed. Please check your internet or try again later.",
+        isError: true
       }]);
     } finally {
       setIsLoading(false);
     }
+  };
 
-    // ==========================================
-    // MANUAL TEST CODE (Simulating AI Reply)
-    // ==========================================
-    /*
-    setTimeout(() => {
-      setMessages(prev => [...prev, {
-        role: 'agent',
-        text: "I have checked the availability for your requested date. Unfortunately, the main hall is currently undergoing maintenance. However, I can offer you Bilik Ilmuan 1 or the Seminar Room as alternatives. \n\nBoth spaces are fully equipped with high-speed Wi-Fi, premium sound systems, and enough seating for up to 50 participants. Please let me know if you would like me to lock in these dates for you, or if you need to add more equipment like microphones or extra flip charts to your list. Our team is ready to assist you in making your event a success!"
-      }]);
-      setIsLoading(false);
-    }, 1500);
-    */
-    // ==========================================
+  const handleSendMessage = async () => {
+    const hasContent = requirement.trim() || displayedSpace || displayedEquipment.length > 0 || displayedDepts.length > 0;
+    if (!hasContent || isLoading) return;
+
+    const userText = requirement;
+    const tagSnapshot = {
+      space: displayedSpace,
+      equipment: [...displayedEquipment],
+      depts: [...displayedDepts],
+    };
+
+    setMessages(prev => [...prev, {
+      role: 'user',
+      text: userText,
+      tags: tagSnapshot,
+    }] );
+
+    onSetRequirement('');
+    onSetDisplayedSpace(null);
+    onSetDisplayedEquipment([]);
+    onSetDisplayedDepts([]);
+
+    await sendToAI(userText, tagSnapshot);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -323,7 +444,7 @@ const MainChat: React.FC<MainChatProps> = ({
           </div>
         </header>
 
-<div className="flex-1 flex flex-col px-5 md:px-10 overflow-hidden relative">
+        <div className="flex-1 flex flex-col px-5 md:px-10 overflow-hidden relative">
           <div className="flex-1 overflow-y-auto no-scrollbar pt-4 flex flex-col">
             {messages.length === 0 ? (
               <div className="mt-4 md:mt-9 mb-auto w-full flex flex-col items-start md:items-center">
@@ -342,15 +463,49 @@ const MainChat: React.FC<MainChatProps> = ({
               <div className="w-full max-w-3xl mx-auto flex flex-col gap-5 pb-0 mt-auto">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-sm ${
-                      msg.role === 'user' ? 'bg-[#1A1A1A] text-white rounded-br-none' : 'bg-white text-[#1A1A1A] border border-slate-200 rounded-bl-none'
-                    }`}>
+                    <div className={`max-w-[92%] shadow-sm overflow-hidden w-fit ${msg.role === 'user'
+                      ? 'bg-slate-900 text-white border border-slate-800 rounded-3xl rounded-br-none px-5 py-4'
+                      : 'bg-white text-[#1A1A1A] border border-slate-200 rounded-3xl rounded-bl-none'
+                      }`}>
                       {msg.role === 'agent' ? (
-                        <div className="prose prose-sm max-w-none prose-slate">
-                          <ReactMarkdown>{msg.text}</ReactMarkdown>
-                        </div>
+                        <>
+                          {/* Thoughts dropdown — inside the bubble */}
+                          {msg.thoughts && msg.thoughts.length > 0 && (
+                            <div className="border-b border-slate-100">
+                              <button
+                                onClick={() => setExpandedThoughts(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                className="w-full flex items-center justify-between gap-2 px-5 py-2.5 text-[11px] font-medium text-slate-400 hover:text-slate-500 hover:bg-slate-50/70 transition-all"
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                                  <span className="italic">Thought for a moment</span>
+                                </div>
+                                <svg
+                                  className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${expandedThoughts[idx] ? 'rotate-180' : ''}`}
+                                  viewBox="0 0 16 16" fill="none"
+                                >
+                                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </button>
+                              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedThoughts[idx] ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                <div className="px-5 pb-3 pt-1 flex flex-col gap-2 border-t border-slate-100/80">
+                                  {msg.thoughts.map((thought, ti) => (
+                                    <div key={ti} className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-400">
+                                      <span className="mt-0.5 shrink-0 text-slate-300">·</span>
+                                      <span className="italic">{thought}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {/* Main reply */}
+                          <div className="prose prose-sm max-w-none prose-slate wrap-break-word whitespace-pre-wrap px-5 py-4">
+                            <ReactMarkdown>{msg.text}</ReactMarkdown>
+                          </div>
+                        </>
                       ) : (
-                        <div className="whitespace-pre-wrap">
+                        <div className="whitespace-pre-wrap wrap-break-word text-sm leading-6">
                           {msg.text || "Check these requirements:"}
                         </div>
                       )}
@@ -374,6 +529,15 @@ const MainChat: React.FC<MainChatProps> = ({
                         ))}
                       </div>
                     )}
+
+                    {msg.role === 'agent' && idx === messages.length - 1 && !isLoading && (
+                      <button
+                        onClick={handleRetry}
+                        className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors uppercase tracking-wider"
+                      >
+                        <IconRetry /> {msg.isError ? 'Try again' : 'Regenerate'}
+                      </button>
+                    )}
                   </div>
                 ))}
                 {isLoading && (
@@ -388,7 +552,7 @@ const MainChat: React.FC<MainChatProps> = ({
             )}
           </div>
 
-          <div className="w-full max-w-2xl mx-auto mt-2 mb-4 shrink-0">
+          <div className="w-full max-w-3xl mx-auto mt-2 mb-4 shrink-0">
             {requirement === '' && messages.length === 0 && (
               <div className="flex flex-row justify-start md:justify-center gap-2 mb-2 overflow-x-auto no-scrollbar pb-1">
                 {['Book room', 'Book equipment', 'Find the contact','Operating time','View history'].map(label => (
