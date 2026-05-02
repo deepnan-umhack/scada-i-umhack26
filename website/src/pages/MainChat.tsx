@@ -35,7 +35,7 @@ interface MainChatProps {
 interface Message {
   role: 'user' | 'agent';
   text: string;
-  thoughts?: string[];
+  thoughts?: string[]; // CHANGED: Now an array to support your streaming logic
   isError?: boolean;
   tags?: {
     space: string | null;
@@ -244,6 +244,7 @@ const MainChat: React.FC<MainChatProps> = ({
         throw new Error("Server error");
       }
 
+      // INTEGRATED STREAMING LOGIC
       const contentType = response.headers.get("content-type") || "";
       const isStream = contentType.includes("text/event-stream") || contentType.includes("text/plain") || !contentType.includes("application/json");
 
@@ -255,28 +256,6 @@ const MainChat: React.FC<MainChatProps> = ({
         const decoder = new TextDecoder();
         let buffer = '';
 
-        const appendThought = (thought: string) => {
-          setMessages(prev => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last?.role === 'agent') {
-              updated[updated.length - 1] = { ...last, thoughts: [...(last.thoughts ?? []), thought] };
-            }
-            return updated;
-          });
-        };
-
-        const appendText = (token: string) => {
-          setMessages(prev => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last?.role === 'agent') {
-              updated[updated.length - 1] = { ...last, text: last.text + token };
-            }
-            return updated;
-          });
-        };
-
         const processLine = (line: string) => {
           const raw = line.startsWith('data: ') ? line.slice(6).trim() : line.trim();
           if (!raw || raw === '[DONE]') return;
@@ -287,47 +266,48 @@ const MainChat: React.FC<MainChatProps> = ({
 
             if (type === 'thought') {
               const detail: string = parsed.details ?? parsed.text ?? parsed.content ?? '';
-              if (detail) appendThought(detail);
-
-            } else if (type === 'action') {
-                const agent: string = parsed.agent ?? 'Agent';
-                const action: string = parsed.action ?? '';
-                const rawDetails: string = parsed.details ?? '';
-
-                let detailText = rawDetails;
-
-                // Try to extract JSON anywhere in the string (handles mixed text + JSON)
-                const jsonMatch = rawDetails.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                  try {
-                    const innerJson = JSON.parse(jsonMatch[0]);
-                    // Use .message if present, otherwise pretty-print the whole object
-                    detailText = typeof innerJson.message === 'string'
-                      ? innerJson.message.trim()
-                      : JSON.stringify(innerJson, null, 2);
-                  } catch {
-                    detailText = rawDetails;
+              if (detail) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last?.role === 'agent') {
+                    updated[updated.length - 1] = { ...last, thoughts: [...(last.thoughts ?? []), detail] };
                   }
-                }
-
-                const thoughtEntry = `${agent} — ${action}${detailText ? `\n${detailText}` : ''}`;
-                appendThought(thoughtEntry);
-
+                  return updated;
+                });
+              }
             } else if (type === 'final_response') {
               const token: string = parsed.details ?? parsed.text ?? parsed.content ?? parsed.reply ?? '';
-              if (token) appendText(token);
-
+              if (token) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last?.role === 'agent') updated[updated.length - 1] = { ...last, text: last.text + token };
+                  return updated;
+                });
+              }
             } else if (type === 'done') {
-              // stream complete, nothing to do
-
+              // stream complete
             } else {
               const token: string = parsed.token ?? parsed.text ?? parsed.content ?? parsed.reply ?? raw;
-              if (token) appendText(token);
+              if (token) {
+                setMessages(prev => {
+                  const updated = [...prev];
+                  const last = updated[updated.length - 1];
+                  if (last?.role === 'agent') updated[updated.length - 1] = { ...last, text: last.text + token };
+                  return updated;
+                });
+              }
             }
-
           } catch {
-            // Not JSON — append raw as text token
-            if (raw) appendText(raw);
+            if (raw) {
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'agent') updated[updated.length - 1] = { ...last, text: last.text + raw };
+                return updated;
+              });
+            }
           }
         };
 
@@ -572,6 +552,7 @@ const MainChat: React.FC<MainChatProps> = ({
                   <div className="flex items-center gap-2 overflow-hidden w-full">
                     <span className="text-lg opacity-50 shrink-0"></span>
 
+                    {/* Rename Input vs Normal Title */}
                     {editingChatId === chat.id ? (
                       <input
                         value={editTitle}
@@ -590,6 +571,7 @@ const MainChat: React.FC<MainChatProps> = ({
                     )}
                   </div>
 
+                  {/* Kebab Menu Container */}
                   <div className="relative shrink-0">
                     <button
                       onClick={(e) => handleToggleMenu(e, chat.id)}
@@ -599,6 +581,7 @@ const MainChat: React.FC<MainChatProps> = ({
                       <IconMore />
                     </button>
 
+                    {/* Dropdown Box */}
                     {openMenuId === chat.id && (
                       <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-slate-200 shadow-lg rounded-xl z-50 overflow-hidden text-sm py-1 font-medium">
                         <button
@@ -671,6 +654,7 @@ const MainChat: React.FC<MainChatProps> = ({
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
+                    {/* UPDATED MESSAGE BUBBLE WRAPPER */}
                     <div className={`max-w-[92%] px-5 py-4 shadow-sm overflow-hidden wrap-break-word w-fit ${msg.role === 'user'
                       ? 'bg-slate-900 text-white border border-slate-800 rounded-3xl rounded-br-none'
                       : 'bg-white text-[#1A1A1A] border border-slate-200 rounded-3xl rounded-bl-none'
@@ -678,6 +662,7 @@ const MainChat: React.FC<MainChatProps> = ({
 
                       {msg.role === 'agent' ? (
                         <>
+                          {/* COMPACT THINKING DROPDOWN HANDLING ARRAY OF THOUGHTS */}
                           {msg.thoughts && msg.thoughts.length > 0 && (
                             <div className="mb-3">
                               <button
@@ -698,10 +683,10 @@ const MainChat: React.FC<MainChatProps> = ({
                                 </svg>
                               </button>
 
-                              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedThoughts[idx] ? 'max-h-[600px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-                                <div className="border-l-2 border-slate-200 pl-3 ml-1 flex flex-col gap-2">
+                              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedThoughts[idx] ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+                                <div className="border-l-2 border-slate-200 pl-3 ml-1 flex flex-col gap-1.5">
                                   {msg.thoughts.map((thoughtItem, ti) => (
-                                    <div key={ti} className="text-[11px] leading-relaxed text-slate-500 italic whitespace-pre-wrap font-mono">
+                                    <div key={ti} className="text-[11px] leading-relaxed text-slate-500 italic">
                                       {thoughtItem}
                                     </div>
                                   ))}
@@ -710,6 +695,7 @@ const MainChat: React.FC<MainChatProps> = ({
                             </div>
                           )}
 
+                          {/* MAIN AI REPLY */}
                           <div className="prose prose-sm max-w-none prose-slate wrap-break-word whitespace-pre-wrap [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                             <ReactMarkdown>{msg.text}</ReactMarkdown>
                           </div>
@@ -720,7 +706,6 @@ const MainChat: React.FC<MainChatProps> = ({
                         </div>
                       )}
                     </div>
-
                     {msg.role === 'user' && msg.tags && (
                       <div className="flex flex-wrap justify-end gap-2 mt-2 max-w-[85%]">
                         {msg.tags.space && (
