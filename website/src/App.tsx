@@ -10,20 +10,70 @@ import DepartmentDirectory from './pages/DepartmentDirectory';
 import ProfileSettings from './pages/ProfileSettings';
 
 function App() {
-  const [showLanding, setShowLanding] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // 1. Initialize states from localStorage so they survive unmounts/refreshes
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('is_auth') === 'true';
+  });
+  
+  const [showLanding, setShowLanding] = useState(() => {
+    // Optional: Skip landing animation if already logged in from a refresh
+    return localStorage.getItem('is_auth') !== 'true'; 
+  });
+
   const [activeView, setActiveView] = useState<'chat' | 'browse' | 'bookings' | 'catalog' | 'directory' | 'profile'>('chat');
-  const [draftMessage, setDraftMessage] = useState('');
-  const [displayedSpace, setDisplayedSpace] = useState<string | null>(null);
-  const [displayedEquipment, setDisplayedEquipment] = useState<string[]>([]);
-  const [displayedDepts, setDisplayedDepts] = useState<string[]>([]);
+  
+  const [draftMessage, setDraftMessage] = useState<string>(() => {
+    return localStorage.getItem('draft_msg') || '';
+  });
+  
+  const [displayedSpace, setDisplayedSpace] = useState<string | null>(() => {
+    return localStorage.getItem('active_space') || null;
+  });
+  
+  const [displayedEquipment, setDisplayedEquipment] = useState<string[]>(() => {
+    const saved = localStorage.getItem('active_equip');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [displayedDepts, setDisplayedDepts] = useState<string[]>(() => {
+    const saved = localStorage.getItem('active_depts');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // 2. Auto-save to localStorage whenever these states change
+  useEffect(() => {
+    localStorage.setItem('is_auth', String(isAuthenticated));
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowLanding(false);
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, []);
+    localStorage.setItem('draft_msg', draftMessage);
+  }, [draftMessage]);
+
+  useEffect(() => {
+    if (displayedSpace) {
+      localStorage.setItem('active_space', displayedSpace);
+    } else {
+      localStorage.removeItem('active_space');
+    }
+  }, [displayedSpace]);
+
+  useEffect(() => {
+    localStorage.setItem('active_equip', JSON.stringify(displayedEquipment));
+  }, [displayedEquipment]);
+
+  useEffect(() => {
+    localStorage.setItem('active_depts', JSON.stringify(displayedDepts));
+  }, [displayedDepts]);
+
+  // Landing page timer
+  useEffect(() => {
+    if (showLanding) {
+      const timer = setTimeout(() => {
+        setShowLanding(false);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [showLanding]);
 
   const snappyVariants = {
     initial: { opacity: 0, scale: 0.99 },
@@ -48,7 +98,7 @@ function App() {
               {activeView === 'chat' && (
                 <motion.div key="chat" {...snappyVariants} className="h-full">
                   <MainChat 
-                    requirement={draftMessage}         // Persistent draft text
+                    requirement={draftMessage}        // Persistent draft text
                     onSetRequirement={setDraftMessage} // Setter for text
                     displayedSpace={displayedSpace}
                     onSetDisplayedSpace={setDisplayedSpace}
@@ -139,9 +189,11 @@ function App() {
                     onBack={() => setActiveView('chat')} 
                     onOpenBookingStatus={() => setActiveView('bookings')}
                     onLogout={() => {
+                        // Clear the cache completely on logout
+                        localStorage.clear(); 
                         setIsAuthenticated(false);
                         setActiveView('chat');
-                        setDraftMessage(''); // Reset draft on logout
+                        setDraftMessage(''); 
                         setDisplayedEquipment([]);
                         setDisplayedDepts([]);
                         setDisplayedSpace(null);

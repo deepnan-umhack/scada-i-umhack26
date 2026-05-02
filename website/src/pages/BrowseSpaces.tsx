@@ -7,16 +7,20 @@ import iconEdit from '../assets/Edit.svg';
 import iconSearch from '../assets/Search.svg';
 import iconInfo from '../assets/Info.svg';
 import DTSA from '../assets/DTSA.png';
-import DS from '../assets/DS.png'; 
-import DJ from '../assets/DJ.png'; 
-import DAH from '../assets/DAH.png'; 
+import DS from '../assets/DS.png';
+import DJ from '../assets/DJ.png';
+import DAH from '../assets/DAH.png';
 import BI1 from '../assets/BI1.png';
 import BI2 from '../assets/BI2.png';
 import BI3 from '../assets/BI3.png';
-import BB from '../assets/BB.png'; 
+import BB from '../assets/BB.png';
 import SR from '../assets/SR.png';
 import LRU from '../assets/LRU.png';
 import LRP from '../assets/LRP.png';
+
+const IconMore = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
+);
 
 interface BrowseSpacesProps {
   onBack: () => void;
@@ -26,22 +30,117 @@ interface BrowseSpacesProps {
   selectedSpace: string | null;
 }
 
-const BrowseSpaces: React.FC<BrowseSpacesProps> = ({ 
-  onBack, 
-  onSpaceSelected, 
-  onOpenBookingStatus, 
+// Interfaces needed for Chat History
+interface Message {
+  role: 'user' | 'agent';
+  text: string;
+  thought?: string;
+  isError?: boolean;
+  tags?: {
+    space: string | null;
+    equipment: string[];
+    depts: string[];
+  };
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  isCustomTitle?: boolean;
+}
+
+const BrowseSpaces: React.FC<BrowseSpacesProps> = ({
+  onBack,
+  onSpaceSelected,
+  onOpenBookingStatus,
   onOpenProfileSettings,
-  selectedSpace 
+  selectedSpace
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
-  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
+  // --- CHAT HISTORY STATES ---
+  const [threadId, setThreadId] = useState(() => localStorage.getItem('current_thread_id') || '');
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>(() => {
+    const saved = localStorage.getItem('chat_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
+  // Sync history changes (deletions/renames) to localStorage
+  useEffect(() => {
+    localStorage.setItem('chat_history', JSON.stringify(chatHistory));
+  }, [chatHistory]);
+
+  // Close the 3-dots menu if user clicks anywhere outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openMenuId]);
+
+  // --- HISTORY MANAGEMENT FUNCTIONS ---
   const handleNewChat = () => {
     setIsSidebarOpen(false);
-    onBack();
+    localStorage.removeItem('chat_messages');
+    const newId = Math.random().toString(36).substring(7);
+    localStorage.setItem('current_thread_id', newId); // Force new thread
+    setThreadId(newId);
+    onBack(); // Return to MainChat
   };
+
+  const loadChat = (session: ChatSession) => {
+    if (editingChatId === session.id) return;
+
+    // Set up localStorage so MainChat loads this specific session
+    localStorage.setItem('current_thread_id', session.id);
+    localStorage.setItem('chat_messages', JSON.stringify(session.messages));
+    setThreadId(session.id);
+
+    setIsSidebarOpen(false);
+    onBack(); // Return to MainChat
+  };
+
+  const deleteChat = (e: React.MouseEvent, idToRemove: string) => {
+    e.stopPropagation();
+    setChatHistory(prev => prev.filter(session => session.id !== idToRemove));
+    setOpenMenuId(null);
+    if (idToRemove === threadId) {
+      localStorage.removeItem('chat_messages');
+      const newId = Math.random().toString(36).substring(7);
+      localStorage.setItem('current_thread_id', newId);
+      setThreadId(newId);
+    }
+  };
+
+  const handleToggleMenu = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setOpenMenuId(prev => prev === id ? null : id);
+  };
+
+  const handleStartRename = (e: React.MouseEvent, chat: ChatSession) => {
+    e.stopPropagation();
+    setEditingChatId(chat.id);
+    setEditTitle(chat.title);
+    setOpenMenuId(null);
+  };
+
+  const handleSaveRename = (e: React.SyntheticEvent, id: string) => {
+    e.stopPropagation();
+    if (editTitle.trim()) {
+      setChatHistory(prev => prev.map(c =>
+        c.id === id ? { ...c, title: editTitle.trim(), isCustomTitle: true } : c
+      ));
+    }
+    setEditingChatId(null);
+  };
+
+  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
 
   const handleSpaceClick = (spaceName: string) => {
     if (selectedSpace !== spaceName) {
@@ -74,11 +173,10 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({
 
   return (
     <div className="flex h-svh w-full bg-[#F0F4F8] text-[#1a1a1a] overflow-hidden relative">
-      
+
       {/* Mobile Snackbar Tip */}
-      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-110 transition-all duration-500 ease-in-out px-6 w-full max-w-xs md:hidden ${
-        showToast ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
-      }`}>
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-110 transition-all duration-500 ease-in-out px-6 w-full max-w-xs md:hidden ${showToast ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+        }`}>
         <div className="bg-slate-800 text-white py-3 px-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700">
           <img src={iconInfo} className="h-4 w-4 invert opacity-80" alt="info" />
           <p className="text-[12px] font-medium tracking-wide">
@@ -113,14 +211,81 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({
               <img src={iconInbox} className="h-5 w-5 opacity-70" /><span>Booking history</span>
             </button>
           </div>
+
           <div className="pt-4 px-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Chats</div>
+
+          {/* DYNAMIC HISTORY NAV WITH MENU */}
           <nav className="flex-1 overflow-y-auto space-y-1 min-h-0 custom-scrollbar text-sm text-gray-600">
-            {['A 5 person room', 'Media interview event', 'AI project showcase room'].map((chat) => (
-              <div key={chat} className="group flex items-center justify-between p-2 hover:bg-white/50 rounded-lg cursor-pointer transition-all active:scale-95">
-                <span className="truncate">{chat}</span><span className="text-gray-400 opacity-60">⋮</span>
-              </div>
-            ))}
+            {chatHistory.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-400 italic">No recent chats</div>
+            ) : (
+              chatHistory.map((chat) => (
+                <div
+                  key={chat.id}
+                  onClick={() => loadChat(chat)}
+                  className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${chat.id === threadId
+                    ? 'bg-blue-50/50 text-blue-700 font-medium'
+                    : 'hover:bg-white/50 text-slate-600'
+                    }`}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden w-full">
+                    <span className="text-lg opacity-50 shrink-0"></span>
+
+                    {/* Rename Input vs Normal Title */}
+                    {editingChatId === chat.id ? (
+                      <input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(e, chat.id);
+                          else if (e.key === 'Escape') setEditingChatId(null);
+                        }}
+                        onBlur={(e) => handleSaveRename(e, chat.id)}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 bg-white border border-blue-300 rounded px-1.5 py-0.5 outline-none text-black w-full text-xs"
+                      />
+                    ) : (
+                      <span className="truncate pr-1">{chat.title}</span>
+                    )}
+                  </div>
+
+                  {/* Kebab Menu Container */}
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleMenu(e, chat.id)}
+                      className={`p-1 rounded-md transition-colors ${openMenuId === chat.id ? 'bg-slate-200 text-slate-700 opacity-100' : 'text-gray-400 hover:text-slate-600 hover:bg-slate-200/50'}`}
+                      title="Options"
+                    >
+                      <IconMore />
+                    </button>
+
+                    {/* Dropdown Box */}
+                    {openMenuId === chat.id && (
+                      <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-slate-200 shadow-lg rounded-xl z-50 overflow-hidden text-sm py-1 font-medium">
+                        <button
+                          type="button"
+                          onClick={(e) => handleStartRename(e, chat)}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700"
+                        >
+                          Rename
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => deleteChat(e, chat.id)}
+                          className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </nav>
+
         </div>
         <div className="p-6 border-t border-gray-200/50">
           <button onClick={onOpenProfileSettings} className="flex items-center space-x-3 text-sm font-medium text-gray-600 hover:text-black transition-colors w-full active:scale-95">
@@ -130,18 +295,17 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({
       </aside>
 
       <main className="flex-1 flex flex-col relative min-w-0 h-full">
-        
+
         {/* Header */}
         <header className="sticky top-0 z-50 bg-[#F0F4F8] shrink-0">
           <div className="flex items-center justify-between px-4 md:px-10 py-3">
             <div className="flex items-center gap-4">
               <button
                 onClick={toggleSidebar}
-                className={`p-2 hover:bg-gray-200/50 rounded-lg transition-all duration-300 active:scale-90 ${
-                  isSidebarOpen
+                className={`p-2 hover:bg-gray-200/50 rounded-lg transition-all duration-300 active:scale-90 ${isSidebarOpen
                     ? 'md:opacity-100 md:scale-100 opacity-0 scale-0 pointer-events-none md:pointer-events-auto'
                     : 'opacity-100 scale-100'
-                }`}
+                  }`}
               >
                 <img src={iconMenu} alt="Menu" className="h-5 w-auto" />
               </button>
@@ -164,46 +328,44 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
-                <div className="group relative flex items-center justify-end">
-                    <button 
-                      onClick={() => setShowToast(true)}
-                      className="flex items-center gap-2.5 bg-white border border-slate-200 h-9 px-3 rounded-full shadow-xs transition-all duration-500 ease-out max-w-10.5 md:group-hover:max-w-75 overflow-hidden whitespace-nowrap active:scale-95"
-                    >
-                        <img src={iconInfo} alt="Info" className="h-4 w-4 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity" />
-                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 hidden md:inline">
-                            Tap card to tag to chat
-                        </span>
-                    </button>
-                </div>
-
-                <button onClick={onBack} className="p-1.5 bg-white shadow-sm border border-slate-100 hover:bg-slate-50 rounded-full transition-all active:scale-90 group shrink-0 h-9 w-9 flex items-center justify-center">
-                  <span className="text-lg text-slate-700 group-hover:text-slate-600 transition-colors block leading-none">✕</span>
+              <div className="group relative flex items-center justify-end">
+                <button
+                  onClick={() => setShowToast(true)}
+                  className="flex items-center gap-2.5 bg-white border border-slate-200 h-9 px-3 rounded-full shadow-xs transition-all duration-500 ease-out max-w-10.5 md:group-hover:max-w-75 overflow-hidden whitespace-nowrap active:scale-95"
+                >
+                  <img src={iconInfo} alt="Info" className="h-4 w-4 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 hidden md:inline">
+                    Tap card to tag to chat
+                  </span>
                 </button>
+              </div>
+
+              <button onClick={onBack} className="p-1.5 bg-white shadow-sm border border-slate-100 hover:bg-slate-50 rounded-full transition-all active:scale-90 group shrink-0 h-9 w-9 flex items-center justify-center">
+                <span className="text-lg text-slate-700 group-hover:text-slate-600 transition-colors block leading-none">✕</span>
+              </button>
             </div>
           </div>
-            
+
           <div className="pb-24 mt-2">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 md:gap-x-8 gap-y-8 md:gap-y-12 w-full">
               {spaces.map((space) => {
                 const isChosen = selectedSpace === space.name;
-                
+
                 return (
-                  <div 
-                    key={space.id} 
-                    onClick={() => handleSpaceClick(space.name)} 
-                    className={`flex flex-col items-center group transition-all ${
-                      isChosen ? 'opacity-60 cursor-default' : 'cursor-pointer active:scale-95'
-                    }`}
+                  <div
+                    key={space.id}
+                    onClick={() => handleSpaceClick(space.name)}
+                    className={`flex flex-col items-center group transition-all ${isChosen ? 'opacity-60 cursor-default' : 'cursor-pointer active:scale-95'
+                      }`}
                   >
                     <div className="relative w-full aspect-4/3 overflow-hidden rounded-3xl md:rounded-4xl shadow-sm border border-slate-200/50 bg-slate-100">
-                      <img 
-                        src={space.img} 
-                        alt={space.name} 
-                        className={`w-full h-full object-cover transition-transform duration-700 ease-out ${
-                          isChosen ? 'grayscale' : 'group-hover:scale-110'
-                        }`} 
+                      <img
+                        src={space.img}
+                        alt={space.name}
+                        className={`w-full h-full object-cover transition-transform duration-700 ease-out ${isChosen ? 'grayscale' : 'group-hover:scale-110'
+                          }`}
                       />
-                      
+
                       {/* Chosen Overlay Badge */}
                       {isChosen && (
                         <div className="absolute inset-0 flex items-center justify-center bg-white/10 backdrop-blur-[1px]">
@@ -212,13 +374,12 @@ const BrowseSpaces: React.FC<BrowseSpacesProps> = ({
                           </span>
                         </div>
                       )}
-                      
+
                       <div className="absolute inset-0 bg-linear-to-t from-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     </div>
                     <div className="mt-3 md:mt-4 px-1">
-                      <span className={`text-[13px] md:text-[15px] font-medium text-center leading-snug block transition-colors ${
-                        isChosen ? 'text-slate-400' : 'text-slate-800 group-hover:text-blue-600'
-                      }`}>
+                      <span className={`text-[13px] md:text-[15px] font-medium text-center leading-snug block transition-colors ${isChosen ? 'text-slate-400' : 'text-slate-800 group-hover:text-blue-600'
+                        }`}>
                         {space.name}
                       </span>
                     </div>
