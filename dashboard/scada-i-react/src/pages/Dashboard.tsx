@@ -159,6 +159,7 @@ export default function Dashboard() {
   const [outsideTemp, setOutsideTemp] = useState<number | null>(null);
   const [outsideHumidity, setOutsideHumidity] = useState<number | null>(null);
   const [lastUpdated, setLastUpdated] = useState("Awaiting data...");
+  const [simTime, setSimTime] = useState<number | null>(null); // NEW: Tracks MQTT simulated time
 
   const [powerChartData, setPowerChartData] = useState(initialPowerData);
   const [climateChartData, setClimateChartData] = useState(initialClimateData);
@@ -258,6 +259,9 @@ export default function Dashboard() {
             const promptTimestamp = `${createdDate.toLocaleDateString('en-GB')}, ${createdDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).toLowerCase()}`;
 
             return {
+              rawStatus: b.status || 'PENDING',
+              startTime: startDate.getTime(),
+              endTime: endDate.getTime(),
               status: { label: (b.status || 'PENDING').toUpperCase(), determined_by: "system" },
               event: { 
                 name: b.purpose || "Untitled Booking", 
@@ -339,6 +343,11 @@ export default function Dashboard() {
           
           if (data.timestamp !== undefined) {
             setLastUpdated(data.timestamp);
+            
+            // --- NEW: Update simulated time state for booking status evaluation ---
+            const currentSimTime = new Date(data.timestamp).getTime();
+            setSimTime(currentSimTime);
+            
             const timeParts = data.timestamp.split(' ');
             chartTime = timeParts.length > 1 ? timeParts[1] : data.timestamp;
           }
@@ -376,7 +385,6 @@ export default function Dashboard() {
             const powerVal = Number(totalPower.toFixed(2));
             setPowerWatts(powerVal);
             
-            // Parse simulated time and day from payload
             const currentSimTime = new Date(data.timestamp).getTime();
             const incomingDayOfYear = data.day_of_year !== undefined ? data.day_of_year : new Date(data.timestamp).getDate();
             
@@ -548,11 +556,37 @@ export default function Dashboard() {
     );
   };
 
+  // --- NEW: Compute dynamic bookings based on MQTT simulated time ---
+  const computedBookings = dbBookings.map(b => {
+    let uiStatusLabel = b.rawStatus.toUpperCase();
+    
+    // Evaluate if it's confirmed
+    if (uiStatusLabel === 'CONFIRMED') {
+      if (simTime !== null) {
+        if (simTime >= b.startTime && simTime <= b.endTime) {
+          uiStatusLabel = 'IN PROGRESS';
+        } else if (simTime > b.endTime) {
+          uiStatusLabel = 'COMPLETED';
+        } else {
+          uiStatusLabel = 'UPCOMING';
+        }
+      } else {
+        // Fallback if no simulated time received yet
+        uiStatusLabel = 'UPCOMING';
+      }
+    }
+    
+    return {
+      ...b,
+      status: { ...b.status, label: uiStatusLabel }
+    };
+  });
+
   // --- Reusable Booking Content Renderer ---
   const renderBookingContent = (isExpandedMode: boolean = false) => {
     const statusTypes = ["IN PROGRESS", "UPCOMING", "COMPLETED", "CANCELLED"];
     const activeLabel = expandedBookingStatus || statusTypes[0];
-    const activeBookings = dbBookings.filter(b => b.status.label === activeLabel);
+    const activeBookings = computedBookings.filter(b => b.status.label === activeLabel);
     const safeIndex = currentBookingIndex >= activeBookings.length ? 0 : currentBookingIndex;
 
     return (
@@ -562,7 +596,7 @@ export default function Dashboard() {
           <div className="overflow-y-auto">
             {statusTypes.map((statusLabel, idx) => {
               const isActive = activeLabel === statusLabel;
-              const count = dbBookings.filter(b => b.status.label === statusLabel).length;
+              const count = computedBookings.filter(b => b.status.label === statusLabel).length;
               
               const activeContainerStyles: Record<string, string> = {
                 'IN PROGRESS': 'bg-blue-100 border-blue-300 text-blue-900',
