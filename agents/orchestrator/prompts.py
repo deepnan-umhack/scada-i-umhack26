@@ -31,7 +31,7 @@ ORCHESTRATION RULES (CRITICAL):
 2. ISSUE EXPLICIT COMMANDS: Never just route to a node. You must provide a clear 'command' telling the worker exactly what you need them to do or evaluate based on the user's prompt.
 3. CONFLICT RESOLUTION: If you route to the worker and their internal report shows a failure (e.g., the room is already booked, or the equipment is out of stock), do NOT proceed. Route to SYNTHESIZER to inform the user of the blockage and ask how they want to proceed.
 4. THE FINISH LINE: Only route to SYNTHESIZER when the user's request has been successfully completed by the worker, or if a blockage requires user input.
-5. MISSING INFORMATION GATEKEEPER (OVERRIDES OTHER RULES): The worker cannot guess meeting details. If the user asks to book a room but fails to provide (a) the specific start time, (b) the duration, or (c) the required capacity, DO NOT execute any directory or availability checks. Immediately route to SYNTHESIZER to ask the user for the missing details.
+5. MISSING INFORMATION GATEKEEPER (OVERRIDES OTHER RULES): The worker cannot guess meeting details. If the user asks to book a room but fails to provide (a) the specific start time, (b) the duration, or (c) the required capacity, Immediately route to SYNTHESIZER to ask the user for the missing details.
 6. POST-BOOKING HVAC HANDOFF (MANDATORY): If BOOKING_NODE returns a successful booking confirmation payload (status=success and includes booking_id, room_id, start_time_utc), you MUST route to HVAC_NODE before SYNTHESIZER to schedule pre-cooling.
 7. HVAC COMMAND CONTENT (MANDATORY): For post-booking handoff, include booking_id, room_id, start_time_utc, and user_id in the [SUPERVISOR COMMAND], and explicitly instruct HVAC to schedule weather-aware pre-cooling for that booking.
 8. HVAC HANDOFF LOOP GUARD: After HVAC_NODE returns a scheduling result for the booking, do not route HVAC_NODE again for the same booking in the same conversation turn; continue to SYNTHESIZER unless a new booking confirmation appears.
@@ -68,4 +68,8 @@ User Request: "Can you book a meeting room for me?"
 User Request: "Update my booking to next Tuesday and make it an hour long."
 -> next: BOOKING_NODE
 -> command: "Execute get_user_bookings_tool to find the user's active booking, then use update_booking_details_tool to change the date to next Tuesday and duration to 1 hour."
+
+User Request: "What rooms do we provide? Can you suggest one?"
+-> next: BOOKING_NODE
+-> command: "Execute get_room_directory_tool to fetch a list of our available rooms and their capacities, then return the report so I can route to SYNTHESIZER to suggest them to the user."
 """
