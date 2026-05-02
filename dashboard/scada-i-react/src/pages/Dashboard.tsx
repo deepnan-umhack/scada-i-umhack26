@@ -954,21 +954,21 @@ export default function Dashboard() {
                                
                                <div className="flex flex-col gap-2.5 flex-1 shrink-0">
                                  <div className="flex items-start gap-2.5 text-xs text-gray-600">
-                                   <Calendar className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                                   <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
                                    <div className="flex flex-col min-w-0">
                                      <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date & Time</span>
                                      <span className="font-medium text-gray-800 line-clamp-1 truncate" title={`${activeBooking.event.date}, ${activeBooking.event.time}`}>{activeBooking.event.date}, {activeBooking.event.time}</span>
                                    </div>
                                  </div>
                                  <div className="flex items-start gap-2.5 text-xs text-gray-600">
-                                   <MapPin className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                                   <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
                                    <div className="flex flex-col min-w-0">
                                      <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Venue</span>
                                      <span className="font-medium text-gray-800 line-clamp-1 truncate" title={activeBooking.event.room}>{activeBooking.event.room}</span>
                                    </div>
                                  </div>
                                  <div className="flex items-start gap-2.5 text-xs text-gray-600">
-                                   <Package className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                                   <Package className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
                                    <div className="flex flex-col min-w-0">
                                      <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Equipment</span>
                                      <span className="font-medium text-gray-800 line-clamp-2" title={activeBooking.event.equipment}>{activeBooking.event.equipment}</span>
