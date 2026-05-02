@@ -100,6 +100,7 @@ const ScrollWheelPicker = ({ values, selected, onChange, label }: { values: stri
 
 export default function EsgReports() {
   const [generationState, setGenerationState] = useState<'idle' | 'generating' | 'success'>('idle');
+  const [generationStatusText, setGenerationStatusText] = useState("Initializing generation..."); // Added state for dynamic text
   
   // Modals state
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -214,13 +215,14 @@ export default function EsgReports() {
   };
 
   const submitGenerateReport = async () => {
-    if (calculatedDuration === "Invalid period") return; // Prevent submission on invalid dates
+    if (calculatedDuration === "Invalid period") return;
 
     setIsGenerateOpen(false);
     setGenerationState('generating');
+    setGenerationStatusText('Initializing generation...');
 
     try {
-      const response = await fetch("https://scada-i-umhack26-1.onrender.com/chat", {
+      const response = await fetch("https://scada-i-umhack26-production.up.railway.app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -230,11 +232,51 @@ export default function EsgReports() {
         })
       });
       
-      const data = await response.json();
-      console.log("Report Generation Output:", data);
-      
-      setGenerationState('success');
-      await fetchReports();
+      if (!response.ok) {
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("ReadableStream not supported in this browser.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process each line as it arrives
+        let newlineIndex;
+        while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
+          const line = buffer.slice(0, newlineIndex).trim();
+          buffer = buffer.slice(newlineIndex + 1);
+
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.replace('data: ', '').trim();
+            if (!jsonStr) continue;
+
+            try {
+              const data = JSON.parse(jsonStr);
+              
+              if (data.type === 'thought' || data.type === 'action') {
+                // Update the state with the current agent and their action
+                setGenerationStatusText(`${data.agent}: ${data.action}...`);
+              } else if (data.type === 'done') {
+                setGenerationState('success');
+                await fetchReports(); // Auto-refresh reports on completion
+              }
+            } catch (err) {
+              console.error("Error parsing stream chunk:", err, line);
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error("Failed to trigger report generation:", err);
       setGenerationState('idle');
@@ -286,7 +328,7 @@ export default function EsgReports() {
             </div>
             <div>
               <h3 className={`text-sm font-semibold ${generationState === 'success' ? 'text-emerald-900' : 'text-indigo-900'}`}>
-                {generationState === 'success' ? 'Report Generated Successfully' : 'Generating ESG Report...'}
+                {generationState === 'success' ? 'Report Generated Successfully' : generationStatusText}
               </h3>
               <p className={`text-xs mt-0.5 ${generationState === 'success' ? 'text-emerald-700/80' : 'text-indigo-700/80'}`}>
                 {generationState === 'success' 

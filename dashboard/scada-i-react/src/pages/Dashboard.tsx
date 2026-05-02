@@ -6,7 +6,7 @@ import {
   LineChart, Line, ReferenceLine, Legend
 } from "recharts";
 import { 
-  Cloud, Zap, Users, Leaf, Lightbulb, Settings2, User, Bot, Thermometer, Droplets, X, Wind, Minus, Plus, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, Package, FileText 
+  Cloud, Zap, Users, Leaf, Lightbulb, Settings2, User, Bot, Thermometer, Droplets, X, Wind, Minus, Plus, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, Package, Expand 
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -180,6 +180,7 @@ export default function Dashboard() {
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
   const [expandedBookingStatus, setExpandedBookingStatus] = useState<string | null>(null);
   const [currentBookingIndex, setCurrentBookingIndex] = useState(0);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -547,6 +548,152 @@ export default function Dashboard() {
     );
   };
 
+  // --- Reusable Booking Content Renderer ---
+  const renderBookingContent = (isExpandedMode: boolean = false) => {
+    const statusTypes = ["IN PROGRESS", "UPCOMING", "COMPLETED", "CANCELLED"];
+    const activeLabel = expandedBookingStatus || statusTypes[0];
+    const activeBookings = dbBookings.filter(b => b.status.label === activeLabel);
+    const safeIndex = currentBookingIndex >= activeBookings.length ? 0 : currentBookingIndex;
+
+    return (
+      <div className={`absolute inset-0 h-full flex flex-row bg-white overflow-hidden ${isExpandedMode ? '' : 'rounded-xl border border-gray-200 shadow-sm'}`}>
+        {/* Left Side Panel */}
+        <div className={`${isExpandedMode ? 'w-[160px] lg:w-[200px]' : 'w-[120px] lg:w-[130px]'} flex-shrink-0 bg-gray-50 border-r border-gray-200 flex flex-col justify-between`}>
+          <div className="overflow-y-auto">
+            {statusTypes.map((statusLabel, idx) => {
+              const isActive = activeLabel === statusLabel;
+              const count = dbBookings.filter(b => b.status.label === statusLabel).length;
+              
+              const activeContainerStyles: Record<string, string> = {
+                'IN PROGRESS': 'bg-blue-100 border-blue-300 text-blue-900',
+                'UPCOMING': 'bg-amber-100 border-amber-300 text-amber-900',
+                'COMPLETED': 'bg-emerald-100 border-emerald-300 text-emerald-900',
+                'CANCELLED': 'bg-red-100 border-red-300 text-red-900',
+              };
+              const activeStyle = activeContainerStyles[statusLabel] || 'bg-gray-100 border-gray-300 text-gray-900';
+              
+              return (
+                <button 
+                  key={idx}
+                  onClick={() => {
+                    setExpandedBookingStatus(statusLabel);
+                    setCurrentBookingIndex(0);
+                  }}
+                  className={`w-full p-3 lg:p-4 flex flex-col items-start text-left border-b ${isActive ? activeStyle : 'border-gray-200/60 text-gray-500'}`}
+                >
+                  <div className="w-full flex items-center justify-between">
+                    <span className={`${isExpandedMode ? 'text-xs lg:text-sm' : 'text-[10px] lg:text-[11px]'} font-bold uppercase tracking-wide whitespace-nowrap`}>
+                      {statusLabel}
+                    </span>
+                    {count > 0 && (
+                      <span className={`font-semibold text-xs ${isActive ? 'opacity-80' : 'text-gray-400'}`}>
+                        {count}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {!isExpandedMode && (
+            <div className="p-3 lg:p-4 border-gray-200/60 mt-auto">
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsBookingModalOpen(true); }}
+                className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 opacity-70 hover:opacity-100 transition-opacity w-full focus:outline-none"
+                title="Expand to full screen"
+              >
+                <Expand size={16} />
+                {/* <span>EXPAND</span> */}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Right Content Area */}
+        <div className={`flex-1 flex flex-col min-w-0 ${isExpandedMode ? 'p-6 lg:p-10' : 'p-3 lg:p-4'} overflow-y-hidden relative`}>
+          {activeBookings.length > 0 ? (
+            <div className="flex flex-col h-full">
+              {(() => {
+                 const activeBooking = activeBookings[safeIndex];
+                 return (
+                   <div className={`flex flex-col ${isExpandedMode ? 'gap-6 lg:gap-8' : 'gap-3'} flex-1 overflow-y-auto pb-2 pr-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300 relative`}>
+                     
+                     <div className="flex flex-col min-w-0 pb-3 border-b border-gray-100/80">
+                       <h4 className={`font-semibold text-gray-900 ${isExpandedMode ? 'text-lg lg:text-xl' : 'text-sm truncate'}`} title={activeBooking.event.name}>{activeBooking.event.name}</h4>
+                       <p className={`${isExpandedMode ? 'text-sm mt-1' : 'text-[10px] lg:text-xs mt-0.5 line-clamp-1'} text-gray-500`} title={activeBooking.event.department}>{activeBooking.event.department}</p>
+                     </div>
+                     
+                     <div className={`flex flex-col ${isExpandedMode ? 'gap-4' : 'gap-2.5'} flex-1 shrink-0`}>
+                       <div className={`flex items-start gap-3 text-gray-600`}>
+                         <Calendar className={`${isExpandedMode ? 'w-4 h-4' : 'w-3.5 h-3.5'} text-gray-400 flex-shrink-0 mt-0.5`} />
+                         <div className="flex flex-col min-w-0">
+                           <span className={`${isExpandedMode ? 'text-[10px]' : 'text-[9px]'} font-semibold text-gray-400 uppercase tracking-wider mb-0.5`}>Date & Time</span>
+                           <span className={`font-medium text-gray-800 ${isExpandedMode ? 'text-sm' : 'text-xs line-clamp-1 truncate'}`} title={`${activeBooking.event.date}, ${activeBooking.event.time}`}>{activeBooking.event.date}, {activeBooking.event.time}</span>
+                         </div>
+                       </div>
+                       <div className={`flex items-start gap-3 text-gray-600`}>
+                         <MapPin className={`${isExpandedMode ? 'w-4 h-4' : 'w-3.5 h-3.5'} text-gray-400 flex-shrink-0 mt-0.5`} />
+                         <div className="flex flex-col min-w-0">
+                           <span className={`${isExpandedMode ? 'text-[10px]' : 'text-[9px]'} font-semibold text-gray-400 uppercase tracking-wider mb-0.5`}>Venue</span>
+                           <span className={`font-medium text-gray-800 ${isExpandedMode ? 'text-sm' : 'text-xs line-clamp-1 truncate'}`} title={activeBooking.event.room}>{activeBooking.event.room}</span>
+                         </div>
+                       </div>
+                       <div className={`flex items-start gap-3 text-gray-600`}>
+                         <Package className={`${isExpandedMode ? 'w-4 h-4' : 'w-3.5 h-3.5'} text-gray-400 flex-shrink-0 mt-0.5`} />
+                         <div className="flex flex-col min-w-0">
+                           <span className={`${isExpandedMode ? 'text-[10px]' : 'text-[9px]'} font-semibold text-gray-400 uppercase tracking-wider mb-0.5`}>Equipment</span>
+                           <span className={`font-medium text-gray-800 ${isExpandedMode ? 'text-sm' : 'text-xs line-clamp-2'}`} title={activeBooking.event.equipment}>{activeBooking.event.equipment}</span>
+                         </div>
+                       </div>
+                     </div>
+
+                     <div className={`mt-2 bg-indigo-50/40 rounded-lg ${isExpandedMode ? 'p-5' : 'p-3'} border border-indigo-100/50 flex flex-col ${isExpandedMode ? 'gap-2' : 'gap-1.5'} shrink-0`}>
+                       <div className="flex items-center justify-between mb-1">
+                         <span className={`${isExpandedMode ? 'text-[10px]' : 'text-[9px]'} font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5`}>
+                           <User className={`${isExpandedMode ? 'w-3.5 h-3.5' : 'w-3 h-3'}`} /> Prompt
+                         </span>
+                         <span className={`${isExpandedMode ? 'text-[10px]' : 'text-[9px]'} font-medium text-indigo-400`}>{activeBooking.user_prompt.timestamp}</span>
+                       </div>
+                       <p className={`${isExpandedMode ? 'text-sm' : 'text-[11px] lg:text-xs'} text-gray-700 italic leading-relaxed`}>
+                         "{activeBooking.user_prompt.message}"
+                       </p>
+                     </div>
+                   </div>
+                 )
+              })()}
+
+              {/* Navigation Controls */}
+              {activeBookings.length > 1 && (
+                <div className={`flex items-center justify-between mt-2 border-t border-gray-100 shrink-0 ${isExpandedMode ? 'pt-5' : 'pt-3'}`}>
+                  <button
+                    onClick={() => setCurrentBookingIndex(prev => Math.max(0, prev - 1))}
+                    disabled={safeIndex === 0}
+                    className={`p-1.5 rounded-md transition-colors ${safeIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600'}`}
+                  >
+                    <ChevronLeft className={`${isExpandedMode ? 'w-6 h-6' : 'w-5 h-5'}`} />
+                  </button>
+                  <span className={`${isExpandedMode ? 'text-sm' : 'text-xs'} text-gray-500 font-medium`}>
+                    {safeIndex + 1} <span className="text-gray-300 mx-1">/</span> {activeBookings.length}
+                  </span>
+                  <button
+                    onClick={() => setCurrentBookingIndex(prev => Math.min(activeBookings.length - 1, prev + 1))}
+                    disabled={safeIndex === activeBookings.length - 1}
+                    className={`p-1.5 rounded-md transition-colors ${safeIndex === activeBookings.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600'}`}
+                  >
+                    <ChevronRight className={`${isExpandedMode ? 'w-6 h-6' : 'w-5 h-5'}`} />
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm h-full absolute inset-0">No bookings in this status</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full pb-6 lg:pb-0 font-sans text-gray-900 bg-gray-50 min-h-screen">
       
@@ -554,7 +701,7 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 lg:mb-6 gap-4 px-4 pt-4 lg:px-0 lg:pt-0">
         <div>
           <nav className="flex items-center space-x-2 text-sm font-medium text-gray-500 mb-2">
-            <span className="text-indigo-600">Dashboard</span>
+            <span className="text-[#0000FF]">Dashboard</span>
             <span className="text-gray-400 px-1">•</span>
             <Link to="/dashboard/esg-reports" className="hover:text-gray-900 transition-colors">ESG Reports</Link>
           </nav>
@@ -877,6 +1024,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* --- Dashboard Booking Widget --- */}
         <div className="rounded-lg border border-gray-200/60 bg-white shadow-sm p-4 lg:p-6 flex flex-col h-full">
           <div className="mb-4 lg:mb-6 flex justify-between items-center shrink-0">
             <div>
@@ -887,144 +1035,47 @@ export default function Dashboard() {
           </div>
           
           <div className="flex-1 relative min-h-[300px] lg:min-h-0 mt-0">
-            {isLoadingBookings ? (
+            {isLoadingBookings && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10 rounded-xl border border-gray-200">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
               </div>
-            ) : null}
-            <div className="absolute inset-0 h-full flex flex-row bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              {(() => {
-              const statusTypes = ["IN PROGRESS", "UPCOMING", "COMPLETED", "CANCELLED"];
-              const activeLabel = expandedBookingStatus || statusTypes[0];
-              const activeBookings = dbBookings.filter(b => b.status.label === activeLabel);
-              const safeIndex = currentBookingIndex >= activeBookings.length ? 0 : currentBookingIndex;
-
-              return (
-                <>
-                  {/* Left Side Panel */}
-                  <div className="w-[120px] lg:w-[130px] flex-shrink-0 bg-gray-50 border-r border-gray-200 flex flex-col overflow-y-auto">
-                    {statusTypes.map((statusLabel, idx) => {
-                      const isActive = activeLabel === statusLabel;
-                      const count = dbBookings.filter(b => b.status.label === statusLabel).length;
-                      
-                      const activeContainerStyles: Record<string, string> = {
-                        'IN PROGRESS': 'bg-blue-100 border-blue-300 text-blue-900',
-                        'UPCOMING': 'bg-amber-100 border-amber-300 text-amber-900',
-                        'COMPLETED': 'bg-emerald-100 border-emerald-300 text-emerald-900',
-                        'CANCELLED': 'bg-red-100 border-red-300 text-red-900',
-                      };
-                      const activeStyle = activeContainerStyles[statusLabel] || 'bg-gray-100 border-gray-300 text-gray-900';
-                      
-                      return (
-                        <button 
-                          key={idx}
-                          onClick={() => {
-                            setExpandedBookingStatus(statusLabel);
-                            setCurrentBookingIndex(0);
-                          }}
-                          className={`w-full p-3 lg:p-4 flex flex-col items-start text-left border-b transition-colors ${isActive ? activeStyle : 'border-gray-200/60 hover:bg-gray-100 text-gray-500'}`}
-                        >
-                          <div className="w-full flex items-center justify-between">
-                            <span className="text-[10px] lg:text-[11px] font-bold uppercase tracking-wide whitespace-nowrap">
-                              {statusLabel}
-                            </span>
-                            {count > 0 && (
-                              <span className={`font-semibold text-xs ${isActive ? 'opacity-80' : 'text-gray-400'}`}>
-                                {count}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Right Content Area */}
-                  <div className="flex-1 flex flex-col min-w-0 p-3 lg:p-4 overflow-y-hidden relative">
-                    {activeBookings.length > 0 ? (
-                      <div className="flex flex-col h-full">
-                        {(() => {
-                           const activeBooking = activeBookings[safeIndex];
-                           return (
-                             <div className="flex flex-col gap-3 flex-1 overflow-y-auto pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
-                               <div className="flex flex-col min-w-0 pb-2 border-b border-gray-100/50">
-                                 <h4 className="font-semibold text-gray-900 text-sm truncate" title={activeBooking.event.name}>{activeBooking.event.name}</h4>
-                                 <p className="text-[10px] lg:text-xs text-gray-500 mt-0.5 line-clamp-1" title={activeBooking.event.department}>{activeBooking.event.department}</p>
-                               </div>
-                               
-                               <div className="flex flex-col gap-2.5 flex-1 shrink-0">
-                                 <div className="flex items-start gap-2.5 text-xs text-gray-600">
-                                   <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
-                                   <div className="flex flex-col min-w-0">
-                                     <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Date & Time</span>
-                                     <span className="font-medium text-gray-800 line-clamp-1 truncate" title={`${activeBooking.event.date}, ${activeBooking.event.time}`}>{activeBooking.event.date}, {activeBooking.event.time}</span>
-                                   </div>
-                                 </div>
-                                 <div className="flex items-start gap-2.5 text-xs text-gray-600">
-                                   <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
-                                   <div className="flex flex-col min-w-0">
-                                     <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Venue</span>
-                                     <span className="font-medium text-gray-800 line-clamp-1 truncate" title={activeBooking.event.room}>{activeBooking.event.room}</span>
-                                   </div>
-                                 </div>
-                                 <div className="flex items-start gap-2.5 text-xs text-gray-600">
-                                   <Package className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
-                                   <div className="flex flex-col min-w-0">
-                                     <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Equipment</span>
-                                     <span className="font-medium text-gray-800 line-clamp-2" title={activeBooking.event.equipment}>{activeBooking.event.equipment}</span>
-                                   </div>
-                                 </div>
-                               </div>
-
-                               <div className="mt-1 bg-indigo-50/40 rounded-lg p-3 border border-indigo-100/50 flex flex-col gap-1.5 shrink-0">
-                                 <div className="flex items-center justify-between">
-                                   <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
-                                     <User className="w-3 h-3" /> Prompt
-                                   </span>
-                                   <span className="text-[9px] font-medium text-indigo-400">{activeBooking.user_prompt.timestamp}</span>
-                                 </div>
-                                 <p className="text-[11px] lg:text-xs text-gray-700 italic leading-relaxed">
-                                   "{activeBooking.user_prompt.message}"
-                                 </p>
-                               </div>
-                             </div>
-                           )
-                        })()}
-
-                        {/* Navigation Controls */}
-                        {activeBookings.length > 1 && (
-                          <div className="flex items-center justify-between pt-3 mt-2 border-t border-gray-100 shrink-0">
-                            <button
-                              onClick={() => setCurrentBookingIndex(prev => Math.max(0, prev - 1))}
-                              disabled={safeIndex === 0}
-                              className={`p-1.5 rounded-md transition-colors ${safeIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100 hover:text-indigo-600'}`}
-                            >
-                              <ChevronLeft className="w-5 h-5" />
-                            </button>
-                            <span className="text-xs text-gray-500 font-medium">
-                              {safeIndex + 1} <span className="text-gray-300 mx-1">/</span> {activeBookings.length}
-                            </span>
-                            <button
-                              onClick={() => setCurrentBookingIndex(prev => Math.min(activeBookings.length - 1, prev + 1))}
-                              disabled={safeIndex === activeBookings.length - 1}
-                              className={`p-1.5 rounded-md transition-colors ${safeIndex === activeBookings.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100 hover:text-indigo-600'}`}
-                            >
-                              <ChevronRight className="w-5 h-5" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center text-gray-400 text-sm h-full absolute inset-0">No bookings in this status</div>
-                    )}
-                  </div>
-                </>
-              );
-            })()}
+            )}
+            {renderBookingContent(false)}
           </div>
         </div>
       </div>
-    </div>
+
+      {/* --- Full-Screen Booking Modal Overlay --- */}
+      {isBookingModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-12 lg:p-16 xl:p-24 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-lg shadow-2xl w-full h-full flex flex-col overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/80 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Calendar className="w-5 h-5 text-gray-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 tracking-tight">Booking Status</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Comprehensive overview of room reservations</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsBookingModalOpen(false)}
+                className="text-gray-400 transition-colors hover:text-gray-800 p-2 hover:bg-gray-200 rounded-xl focus:outline-none"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 relative bg-white">
+              {renderBookingContent(true)}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- MQTT System & AI Terminal Log --- */}
       <div className="px-4 lg:px-0 mb-6">
@@ -1194,7 +1245,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }
