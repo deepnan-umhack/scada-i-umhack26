@@ -173,7 +173,7 @@ describe('MainChat Component', () => {
     expect(mockProps.onSetRequirement).toHaveBeenCalledWith('');
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://scada-i-umhack26-production.up.railway.app/chat',
+        'https://scada-i-umhack26-production-3f18.up.railway.app/chat',
         expect.objectContaining({ method: 'POST' })
       );
     });

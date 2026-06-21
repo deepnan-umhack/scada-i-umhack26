@@ -236,7 +236,7 @@ const MainChat: React.FC<MainChatProps> = ({
         user_id: user?.id ? `${user.id}` : "user_01"
       };
 
-      const response = await fetch("https://scada-i-umhack26-production.up.railway.app/chat", {
+      const response = await fetch("https://scada-i-umhack26-production-3f18.up.railway.app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadToSend),
