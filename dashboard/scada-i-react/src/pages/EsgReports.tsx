@@ -222,7 +222,7 @@ export default function EsgReports() {
     setGenerationStatusText('Initializing generation...');
 
     try {
-      const response = await fetch("https://scada-i-umhack26-production.up.railway.app/chat", {
+      const response = await fetch("https://scada-i-umhack26-production-3f18.up.railway.app/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
