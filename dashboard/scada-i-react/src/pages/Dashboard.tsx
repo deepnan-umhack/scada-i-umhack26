@@ -743,7 +743,7 @@ export default function Dashboard() {
             <span className="text-gray-400 px-1">•</span>
             <Link to="/dashboard/esg-reports" className="hover:text-gray-900 transition-colors">ESG Reports</Link>
           </nav>
-          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">SCADA-i Overview</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">AutoBMS Overview</h1>
           <p className="text-sm text-gray-500 mt-1">Monitor real-time environment & energy metrics</p>
         </div>
         
