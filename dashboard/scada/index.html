@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SCADA 3D Viewer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+  </head>
+  <body class="bg-gray-950 text-white">
+    <div id="app" class="h-screen w-screen flex flex-col">
+      <header class="flex items-center justify-between px-6 py-3 bg-gray-900 border-b border-gray-800">
+        <h1 class="text-lg font-semibold tracking-wide">SCADA 3D Viewer</h1>
+        <div class="flex items-center gap-3 text-sm text-gray-400">
+          <span>Drag to rotate · Scroll to zoom</span>
+        </div>
+      </header>
+      <main class="flex-1 relative">
+        <div id="canvas-container" class="absolute inset-0"></div>
+      </main>
+    </div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

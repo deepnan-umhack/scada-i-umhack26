@@ -6,9 +6,10 @@ import {
   LineChart, Line, ReferenceLine, Legend
 } from "recharts";
 import { 
-  Cloud, Zap, Users, Leaf, Lightbulb, Settings2, User, Bot, Thermometer, Droplets, X, Wind, Minus, Plus, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, Package, Expand 
+  Cloud, Zap, Users, Leaf, Lightbulb, Settings2, User, Bot, Thermometer, Droplets, X, Wind, Minus, Plus, ChevronDown, ChevronLeft, ChevronRight, Calendar, MapPin, Package, Expand, ArrowLeft
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Scene3D } from "../components/Scene3D";
 
 // --- Initialize Supabase Client ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -70,7 +71,7 @@ const WeatherSVG = ({ condition, className }: { condition: string, className?: s
 // --- Initial Mock Data for Charts ---
 const initialPowerData: any[] = [];
 const initialClimateData: any[] = [];
-const initialOccupancyGrid = Array(6).fill(false);
+const initialOccupancyGrid = Array(15).fill(false);
 
 // --- Custom Scrollbar Styles for the Console ---
 const consoleScrollbar = "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border [&::-webkit-scrollbar-thumb]:border-gray-900 hover:[&::-webkit-scrollbar-thumb]:bg-gray-600";
@@ -182,6 +183,9 @@ export default function Dashboard() {
   const [expandedBookingStatus, setExpandedBookingStatus] = useState<string | null>(null);
   const [currentBookingIndex, setCurrentBookingIndex] = useState(0);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
+  // --- 3D Sensor View State ---
+  const [is3DViewActive, setIs3DViewActive] = useState(false);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -444,13 +448,13 @@ export default function Dashboard() {
           }
           
           if (data.seat_status !== undefined) {
-            setGrid(data.seat_status.map((status: number) => status === 1).slice(0, 6));
+            setGrid(data.seat_status.map((status: number) => status === 1).slice(0, 15));
           } else if (data.grid !== undefined) {
-            setGrid(data.grid.slice(0, 6)); 
+            setGrid(data.grid.slice(0, 15)); 
           } else if (data.occupancy_count !== undefined || data.occupancy !== undefined) {
             const count = data.occupancy_count !== undefined ? data.occupancy_count : data.occupancy;
-            const newGrid = Array(6).fill(false);
-            for(let i=0; i < Math.min(count, 6); i++) {
+            const newGrid = Array(15).fill(false);
+            for(let i=0; i < Math.min(count, 15); i++) {
               newGrid[i] = true;
             }
             setGrid(newGrid);
@@ -817,7 +821,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="px-4 pb-4 pt-3 lg:px-5 lg:pb-5 lg:pt-4 flex-1">
-            <div className="text-2xl lg:text-3xl font-semibold text-gray-800 tracking-tight">{occupiedCount} <span className="text-lg text-gray-400 font-medium">/ 6</span></div>
+            <div className="text-2xl lg:text-3xl font-semibold text-gray-800 tracking-tight">{occupiedCount} <span className="text-lg text-gray-400 font-medium">/ 15</span></div>
             <p className="text-[11px] lg:text-xs text-gray-500 mt-1.5 lg:mt-2 font-medium">Seats in use</p>
           </div>
         </div>
@@ -912,38 +916,76 @@ export default function Dashboard() {
         <div className="rounded-lg border border-gray-200/60 bg-white shadow-sm p-4 lg:p-6 flex flex-col">
           <div className="mb-6 flex justify-between items-center">
             <div>
-              <h3 className="text-base lg:text-lg font-semibold text-gray-900 tracking-tight">Real-Time Occupancy</h3>
-              <p className="text-xs lg:text-sm text-gray-500 mt-0.5 lg:mt-1">6-Seat detection array</p>
+              <h3 className="text-base lg:text-lg font-semibold text-gray-900 tracking-tight">Room View</h3>
+              <p className="text-xs lg:text-sm text-gray-500 mt-0.5 lg:mt-1">15-Seat detection array</p>
             </div>
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-xl border border-gray-100 p-8">
-            <div className="grid grid-cols-3 gap-6 sm:gap-8">
-              {grid.map((isOccupied, index) => (
-                <div 
-                  key={index} 
-                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg transition-colors duration-500 flex items-center justify-center ${
-                    isOccupied ? 'bg-red-700 shadow-md transform scale-105' : 'bg-gray-200'
-                  }`}
-                  title={`Seat ${index + 1}: ${isOccupied ? 'Occupied' : 'Empty'}`}
+          <div className={`flex-1 flex flex-col items-center justify-center relative overflow-hidden ${is3DViewActive ? 'rounded-xl' : 'bg-gray-50 rounded-xl border border-gray-100 p-8'}`}>
+            {is3DViewActive ? (
+              <>
+                <button
+                  onClick={() => setIs3DViewActive(false)}
+                  className="absolute top-4 left-4 z-10 p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="Back to occupancy grid"
                 >
-                  <User size={24} className={isOccupied ? "text-white opacity-90" : "text-gray-400 opacity-60"} />
+                  <ArrowLeft size={18} className="text-gray-700" />
+                </button>
+                <div className="w-full h-full">
+                  <Scene3D />
                 </div>
-              ))}
-            </div>
-            <div className="flex items-center gap-4 mt-8">
-               <div className="flex items-center gap-1.5">
-                 <div className="w-3 h-3 rounded-sm bg-red-600 flex items-center justify-center">
-                    <User size={8} className="text-white opacity-80"/>
-                 </div>
-                 <span className="text-xs text-gray-600 font-medium">In Use</span>
-               </div>
-               <div className="flex items-center gap-1.5">
-                 <div className="w-3 h-3 rounded-sm bg-gray-200 flex items-center justify-center">
-                    <User size={8} className="text-gray-400 opacity-60"/>
-                 </div>
-                 <span className="text-xs text-gray-600 font-medium">Empty</span>
-               </div>
-            </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-center gap-3 sm:gap-4">
+                    {grid.slice(0, 7).map((isOccupied, index) => (
+                      <div 
+                        key={index} 
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg transition-colors duration-500 flex items-center justify-center ${
+                          isOccupied ? 'bg-red-700 shadow-md transform scale-105' : 'bg-gray-200'
+                        }`}
+                        title={`Seat ${index + 1}: ${isOccupied ? 'Occupied' : 'Empty'}`}
+                      >
+                        <User size={18} className={isOccupied ? "text-white opacity-90" : "text-gray-400 opacity-60"} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-center gap-3 sm:gap-4">
+                    {grid.slice(7, 15).map((isOccupied, index) => (
+                      <div 
+                        key={index + 7} 
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg transition-colors duration-500 flex items-center justify-center ${
+                          isOccupied ? 'bg-red-700 shadow-md transform scale-105' : 'bg-gray-200'
+                        }`}
+                        title={`Seat ${index + 8}: ${isOccupied ? 'Occupied' : 'Empty'}`}
+                      >
+                        <User size={18} className={isOccupied ? "text-white opacity-90" : "text-gray-400 opacity-60"} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 mt-8">
+                   <div className="flex items-center gap-1.5">
+                     <div className="w-3 h-3 rounded-sm bg-red-600 flex items-center justify-center">
+                        <User size={8} className="text-white opacity-80"/>
+                     </div>
+                     <span className="text-xs text-gray-600 font-medium">In Use</span>
+                   </div>
+                   <div className="flex items-center gap-1.5">
+                     <div className="w-3 h-3 rounded-sm bg-gray-200 flex items-center justify-center">
+                        <User size={8} className="text-gray-400 opacity-60"/>
+                     </div>
+                     <span className="text-xs text-gray-600 font-medium">Empty</span>
+                   </div>
+                </div>
+                <button
+                  onClick={() => setIs3DViewActive(true)}
+                  className="mt-6 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  View Sensors
+                </button>
+              </>
+            )}
           </div>
         </div>
 
