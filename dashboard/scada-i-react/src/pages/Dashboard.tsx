@@ -739,11 +739,13 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 lg:mb-6 gap-4 px-4 pt-4 lg:px-0 lg:pt-0">
         <div>
           <nav className="flex items-center space-x-2 text-sm font-medium text-gray-500 mb-2">
-            <span className="text-[#0000FF] underline">Dashboard</span>
+            <span className="text-[#0000FF] underline font-semibold">Dashboard</span>
             <span className="text-gray-400 px-1">•</span>
             <Link to="/dashboard/esg-reports" className="hover:text-gray-900 transition-colors">ESG Reports</Link>
+            <span className="text-gray-400 px-1">•</span>
+            <Link to="/dashboard/model-governance" className="hover:text-gray-900 transition-colors">Model Governance</Link>
           </nav>
-          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">AutoBMS Overview</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">ACBMS Overview</h1>
           <p className="text-sm text-gray-500 mt-1">Monitor real-time environment & energy metrics</p>
         </div>
         

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import EsgReports from './pages/EsgReports';
+import ModelGovernance from './pages/ModelGovernance';
 // import Alerts from './pages/Alerts';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
           
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/esg-reports" element={<EsgReports />} />
+          <Route path="/dashboard/model-governance" element={<ModelGovernance />} />
           
           {/* Setup future routes here */}
           {/* <Route path="/device-manager" element={<DeviceManager />} /> */}

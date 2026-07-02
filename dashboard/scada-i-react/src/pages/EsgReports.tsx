@@ -309,9 +309,11 @@ export default function EsgReports() {
           <nav className="flex items-center space-x-2 text-sm font-medium text-gray-500 mb-2">
             <Link to="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
             <span className="text-gray-400 px-1">•</span>
-            <span className="text-[#0000FF] underline">ESG Reports</span>
+            <span className="text-[#0000FF] underline font-semibold">ESG Reports</span>
+            <span className="text-gray-400 px-1">•</span>
+            <Link to="/dashboard/model-governance" className="hover:text-gray-900 transition-colors">Model Governance</Link>
           </nav>
-          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">SCADA-i Generative Reports</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">ACBMS Generative Reports</h1>
           <p className="text-sm text-gray-500 mt-1">Monitor real-time environment & energy metrics</p>
         </div>
       </div>
