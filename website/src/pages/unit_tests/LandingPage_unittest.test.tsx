@@ -15,14 +15,14 @@ vi.mock('framer-motion', () => ({
 vi.mock('../../assets/Logo.svg', () => ({ default: 'logo.svg' }))
 
 describe('LandingPage (targeted unit tests)', () => {
-  it('UT-01: renders DeepNaN logo', () => {
+  it('UT-01: renders ACBMS logo', () => {
     render(<LandingPage />)
-    expect(screen.getByAltText('DeepNaN Logo')).toBeInTheDocument()
+    expect(screen.getByAltText('ACBMS Logo')).toBeInTheDocument()
   })
 
   it('UT-02: uses mocked logo src', () => {
     render(<LandingPage />)
-    expect(screen.getByAltText('DeepNaN Logo')).toHaveAttribute('src', 'logo.svg')
+    expect(screen.getByAltText('ACBMS Logo')).toHaveAttribute('src', 'logo.svg')
   })
 
   it('UT-03: renders exactly two splash ripple elements', () => {

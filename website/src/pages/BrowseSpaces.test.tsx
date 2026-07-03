@@ -67,7 +67,7 @@ describe('BrowseSpaces', () => {
 
   it('renders the logo', () => {
     render(<BrowseSpaces {...defaultProps} />)
-    expect(screen.getByAltText('DeepNaN')).toBeInTheDocument()
+    expect(screen.getByAltText('ACBMS')).toBeInTheDocument()
   })
 
   it('renders Bookings button', () => {
@@ -134,7 +134,7 @@ describe('BrowseSpaces', () => {
 
   it('calls onBack when logo is clicked', () => {
     render(<BrowseSpaces {...defaultProps} />)
-    fireEvent.click(screen.getByAltText('DeepNaN'))
+    fireEvent.click(screen.getByAltText('ACBMS'))
     expect(defaultProps.onBack).toHaveBeenCalled()
   })
 

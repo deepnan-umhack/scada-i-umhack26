@@ -19,15 +19,15 @@ describe('LandingPage', () => {
     render(<LandingPage />)
   })
 
-  it('renders the DeepNaN logo', () => {
+  it('renders the ACBMS logo', () => {
     render(<LandingPage />)
-    const logo = screen.getByAltText('DeepNaN Logo')
+    const logo = screen.getByAltText('ACBMS Logo')
     expect(logo).toBeInTheDocument()
   })
 
   it('logo has correct src', () => {
     render(<LandingPage />)
-    const logo = screen.getByAltText('DeepNaN Logo')
+    const logo = screen.getByAltText('ACBMS Logo')
     expect(logo).toHaveAttribute('src', 'logo.svg')
   })
 

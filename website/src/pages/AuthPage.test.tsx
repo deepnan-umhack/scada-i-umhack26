@@ -31,7 +31,7 @@ describe('AuthPage', () => {
   // --- Rendering ---
   it('renders the logo', () => {
     renderAuthPage()
-    expect(screen.getByAltText('DeepNaN Logo')).toBeInTheDocument()
+    expect(screen.getByAltText('ACBMS Logo')).toBeInTheDocument()
   })
 
   it('renders email and password fields by default', () => {

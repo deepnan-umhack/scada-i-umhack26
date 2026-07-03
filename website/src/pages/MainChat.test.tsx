@@ -422,7 +422,7 @@ describe('MainChat Component', () => {
     render(<MainChat {...{ ...mockProps, requirement: 'Hello' }} />);
     fireEvent.click(screen.getByText('➤').closest('button')!);
     await waitFor(() => screen.getByText('This is an AI response.'));
-    fireEvent.click(screen.getByAltText('DeepNaN'));
+    fireEvent.click(screen.getByAltText('ACBMS'));
     expect(screen.getByText('Planning an event?')).toBeInTheDocument();
   });
 

@@ -368,7 +368,7 @@ const BookingStatus: React.FC<BookingStatusProps> = ({ onBack, onOpenProfileSett
               </button>
 
               <button onClick={onBack} className="hover:opacity-70 transition">
-                <img src={logo} alt="DeepNaN" className="h-6 w-auto" />
+                <img src={logo} alt="ACBMS" className="h-6 w-auto" />
               </button>
             </div>
 

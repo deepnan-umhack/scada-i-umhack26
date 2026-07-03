@@ -81,7 +81,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
 
         {/* Logo */}
         <div className="mb-12">
-          <img src={logo} alt="DeepNaN Logo" className="h-10 md:h-12 w-auto" />
+          <img src={logo} alt="ACBMS Logo" className="h-10 md:h-12 w-auto" />
         </div>
 
         {/* Auth Form */}

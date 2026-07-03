@@ -61,7 +61,7 @@ describe('EquipmentCatalog', () => {
 
   it('renders the logo', () => {
     render(<EquipmentCatalog {...defaultProps} />)
-    expect(screen.getByAltText('DeepNaN')).toBeInTheDocument()
+    expect(screen.getByAltText('ACBMS')).toBeInTheDocument()
   })
 
   it('renders Bookings button', () => {
@@ -195,7 +195,7 @@ describe('EquipmentCatalog', () => {
 
   it('calls onBack when logo is clicked', () => {
     render(<EquipmentCatalog {...defaultProps} />)
-    fireEvent.click(screen.getByAltText('DeepNaN'))
+    fireEvent.click(screen.getByAltText('ACBMS'))
     expect(defaultProps.onBack).toHaveBeenCalled()
   })
 

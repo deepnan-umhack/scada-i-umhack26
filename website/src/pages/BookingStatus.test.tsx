@@ -91,7 +91,7 @@ describe('BookingStatus', () => {
   it('renders the logo', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     render(<BookingStatus {...defaultProps} />)
-    await waitFor(() => expect(screen.getByAltText('DeepNaN')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByAltText('ACBMS')).toBeInTheDocument())
   })
 
   // --- Supabase error ---
@@ -271,7 +271,7 @@ describe('BookingStatus', () => {
   it('calls onBack when logo is clicked', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     render(<BookingStatus {...defaultProps} />)
-    await waitFor(() => fireEvent.click(screen.getByAltText('DeepNaN')))
+    await waitFor(() => fireEvent.click(screen.getByAltText('ACBMS')))
     expect(defaultProps.onBack).toHaveBeenCalled()
   })
 

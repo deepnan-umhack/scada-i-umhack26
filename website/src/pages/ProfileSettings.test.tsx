@@ -47,7 +47,7 @@ describe('ProfileSettings', () => {
 
   it('renders the logo', async () => {
     render(<ProfileSettings {...defaultProps} />)
-    await waitFor(() => expect(screen.getByAltText('DeepNaN')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByAltText('ACBMS')).toBeInTheDocument())
   })
 
   it('shows fallback name when no user', async () => {
@@ -131,7 +131,7 @@ describe('ProfileSettings', () => {
 
   it('calls onBack when logo is clicked', async () => {
     render(<ProfileSettings {...defaultProps} />)
-    await waitFor(() => fireEvent.click(screen.getByAltText('DeepNaN')))
+    await waitFor(() => fireEvent.click(screen.getByAltText('ACBMS')))
     expect(defaultProps.onBack).toHaveBeenCalled()
   })
 

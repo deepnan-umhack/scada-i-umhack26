@@ -632,7 +632,7 @@ const MainChat: React.FC<MainChatProps> = ({
                 <img src={iconMenu} alt="Menu" className="h-5 w-auto" />
               </button>
               <button onClick={handleNewChat} className="hover:opacity-70 transition">
-                <img src={logo} alt="DeepNaN" className="h-6 w-auto" />
+                <img src={logo} alt="ACBMS" className="h-6 w-auto" />
               </button>
             </div>
             <button onClick={onOpenBookingStatus} className="bg-white px-5 py-2 rounded-full shadow-sm font-bold uppercase tracking-widest text-[11px] text-transparent bg-clip-text bg-linear-to-r from-pink-500 to-cyan-400">

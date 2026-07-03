@@ -53,7 +53,7 @@ describe('DepartmentDirectory', () => {
 
   it('renders the logo', () => {
     render(<DepartmentDirectory {...defaultProps} />)
-    expect(screen.getByAltText('DeepNaN')).toBeInTheDocument()
+    expect(screen.getByAltText('ACBMS')).toBeInTheDocument()
   })
 
   it('renders Bookings button', () => {
@@ -147,7 +147,7 @@ describe('DepartmentDirectory', () => {
 
   it('calls onBack when logo is clicked', () => {
     render(<DepartmentDirectory {...defaultProps} />)
-    fireEvent.click(screen.getByAltText('DeepNaN'))
+    fireEvent.click(screen.getByAltText('ACBMS'))
     expect(defaultProps.onBack).toHaveBeenCalled()
   })
 
