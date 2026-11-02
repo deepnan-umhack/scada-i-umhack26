@@ -1,6 +1,13 @@
 import os
+import sys
 import json
+import asyncio
 from importlib import import_module
+
+# Configure event loop policy on Windows for psycopg_pool compatibility
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse # <-- ADDED for streaming
@@ -55,6 +62,19 @@ api.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- HEALTH CHECK ENDPOINTS ---
+@api.get("/")
+async def root():
+    return {
+        "status": "online",
+        "service": "SCADA-i Facilities Orchestrator API",
+        "version": "1.0.0"
+    }
+
+@api.get("/health")
+async def health():
+    return {"status": "healthy", "ready": compiled_app is not None}
 
 # --- DATA SCHEMA ---
 class ChatRequest(BaseModel):
@@ -134,3 +154,15 @@ async def chat_endpoint(request: ChatRequest):
         stream_agent_actions(compiled_app, messages_dict, config),
         media_type="text/event-stream"
     )
+
+def get_windows_selector_loop(use_subprocess: bool = False):
+    import asyncio
+    return asyncio.WindowsSelectorEventLoopPolicy().new_event_loop()
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", "8000"))
+    if sys.platform == "win32":
+        uvicorn.run("api:api", host="0.0.0.0", port=port, reload=False, loop="api:get_windows_selector_loop")
+    else:
+        uvicorn.run("api:api", host="0.0.0.0", port=port, reload=False)
